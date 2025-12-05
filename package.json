@@ -22,8 +22,8 @@
     "ffmpeg",
     "server"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Udayan Maurya",
+  "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
