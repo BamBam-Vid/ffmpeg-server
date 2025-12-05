@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+
+# Run ESLint on staged files
+pnpm lint
+
+# Run gitleaks on staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+
+# Check if gitleaks is installed
+if ! command -v gitleaks &> /dev/null; then
+    echo "⚠️  Warning: gitleaks is not installed. Skipping secret detection."
+    echo "   Install gitleaks: brew install gitleaks"
+    exit 0
+fi
+
+# Run gitleaks on staged files only
+echo "$STAGED_FILES" | gitleaks stdin --exit-code=1
+
+# Check if gitleaks found any secrets
+if [ $? -eq 1 ]; then
+    echo "❌ Gitleaks found potential secrets in staged files!"
+    exit 1
+fi
