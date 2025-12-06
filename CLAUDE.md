@@ -29,6 +29,16 @@ docker build -t ffmpeg-server:latest .
 docker run -p 5675:5675 -e PORT=5675 ffmpeg-server:latest
 ```
 
+### CI/CD
+```bash
+# Create and push a git tag to trigger Docker image build
+git tag v1.0.0
+git push origin v1.0.0
+
+# Then create a GitHub Release from the tag (required for deployment)
+# Go to GitHub → Releases → Draft new release → Select tag → Publish
+```
+
 ## Architecture
 
 ### Module System
@@ -80,6 +90,23 @@ ESLint enforces:
 4. Format on save with Prettier (VSCode integration)
 5. ESLint auto-fix on save
 
+## GitHub Actions Workflows
+
+### Build Workflow
+- **File**: `.github/workflows/build.yml`
+- **Triggers**: Push/PR to main branch
+- **Steps**: Install dependencies → Run `pnpm build` (lint + TypeScript compilation)
+
+### Docker Release Workflow
+- **File**: `.github/workflows/docker-release.yml`
+- **Triggers**: GitHub Releases only (NOT tag pushes)
+- **Builds**: Multi-platform images (linux/amd64, linux/arm64)
+- **Pushes to**: Docker Hub as `udaian/ffmpeg-server`
+- **Tags**: Auto-generates semantic versions (`1.0.0`, `1.0`, `1`, `latest`)
+- **Requirements**:
+  - GitHub secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
+  - Must create a GitHub Release (tagging alone won't trigger workflow)
+
 ## Important Notes
 
 - **Package manager**: pnpm 10.1.0 (pinned) - do not use npm or yarn
@@ -87,3 +114,4 @@ ESLint enforces:
 - **No console.log**: Use explicit eslint-disable comment when logging is needed
 - **Type safety**: Leverage `noUncheckedIndexedAccess` - array/object access may be undefined
 - **Imports**: Use `import type` for type-only imports due to `verbatimModuleSyntax`
+- **Docker production install**: Must use `pnpm install --prod --frozen-lockfile --ignore-scripts` to skip Husky prepare script (dev dependency)
