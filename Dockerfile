@@ -23,6 +23,9 @@ RUN pnpm build
 # Stage 2: Production
 FROM node:24.11.1-alpine AS production
 
+# Install FFmpeg from Alpine package repository (pinned version)
+RUN apk add --no-cache ffmpeg=8.0.1-r0
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.1.0 --activate
 
