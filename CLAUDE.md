@@ -80,7 +80,18 @@ ESLint enforces:
 - Middleware: CORS enabled, JSON body parsing
 - Current endpoints:
   - `GET /` - Root endpoint
-  - `GET /health` - Health check with timestamp
+  - `GET /health` - Health check with timestamp and FFmpeg version verification
+  - `POST /execute-ffmpeg` - Execute FFmpeg commands with queue management
+
+### FFmpeg Processing Architecture
+- **Queue-based execution** using `p-queue` to limit concurrent FFmpeg processes
+- **Concurrency limit**: Dynamically calculated as `Math.min(Math.max(Math.floor(cpuCount / 2), 2), 8)`
+- **Timeout protection**: Default 5-minute timeout per FFmpeg process
+- **Argument parsing**: Uses `shell-quote` library to safely parse command arguments
+- **Security**: Rejects shell operators (`>`, `|`, `&&`, etc.) in FFmpeg arguments
+- **Validation**: Uses Zod for request body validation
+- **Error categorization**: Distinguishes between validation, timeout, spawn, execution, and parse errors
+- **Process management**: Uses `child_process.spawn()` for FFmpeg execution with stdout/stderr capture
 
 ## Development Workflow
 
