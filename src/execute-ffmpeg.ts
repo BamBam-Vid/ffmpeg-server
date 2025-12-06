@@ -1,10 +1,20 @@
 import type { Request, Response } from "express";
 import { spawn } from "node:child_process";
+import { cpus } from "node:os";
+import PQueue from "p-queue";
 import { z } from "zod";
 
 const executeFfmpegSchema = z.object({
   args: z.string().min(1),
 });
+
+// Calculate max concurrent FFmpeg processes based on CPU count
+// Use half of available CPUs, minimum 2, maximum 8
+const cpuCount = cpus().length;
+const maxConcurrent = Math.min(Math.max(Math.floor(cpuCount / 2), 2), 8);
+
+// Create queue for managing concurrent FFmpeg processes
+const ffmpegQueue = new PQueue({ concurrency: maxConcurrent });
 
 interface ExecuteFfmpegResponse {
   stdout: string;
@@ -41,7 +51,13 @@ export const executeFfmpeg = async (
   const { args } = parseResult.data;
 
   try {
-    const result = await runFFmpeg(args);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[Queue] Size: ${ffmpegQueue.size}, Pending: ${ffmpegQueue.pending}, Max: ${maxConcurrent}`
+    );
+
+    // Add FFmpeg execution to queue
+    const result = await ffmpegQueue.add(() => runFFmpeg(args));
     res.json(result);
   } catch (err) {
     const errorMessage =
