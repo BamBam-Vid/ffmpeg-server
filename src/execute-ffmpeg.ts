@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { z } from "zod";
 
 const executeFfmpegSchema = z.object({
-  command: z.string().min(1),
+  args: z.string().min(1),
 });
 
 interface ExecuteFfmpegResponse {
@@ -38,10 +38,10 @@ export const executeFfmpeg = async (
     });
   }
 
-  const { command } = parseResult.data;
+  const { args } = parseResult.data;
 
   try {
-    const result = await runFFmpeg(command);
+    const result = await runFFmpeg(args);
     res.json(result);
   } catch (err) {
     const errorMessage =
@@ -54,11 +54,11 @@ export const executeFfmpeg = async (
  * Executes FFmpeg command using child_process.spawn
  * Returns promise that resolves with stdout/stderr/exitCode
  */
-const runFFmpeg = (command: string): Promise<ExecuteFfmpegResponse> => {
+const runFFmpeg = (argsString: string): Promise<ExecuteFfmpegResponse> => {
   return new Promise((resolve, reject) => {
-    const { executable, args } = parseCommand(command);
+    const args = parseArgs(argsString);
 
-    const ffmpegProcess = spawn(executable, args);
+    const ffmpegProcess = spawn("ffmpeg", args);
 
     let stdout = "";
     let stderr = "";
@@ -94,19 +94,15 @@ const runFFmpeg = (command: string): Promise<ExecuteFfmpegResponse> => {
 };
 
 /**
- * Parses a command string into executable and arguments array
+ * Parses arguments string into array
  * Simple split by spaces - doesn't handle quoted arguments yet
  */
-const parseCommand = (
-  command: string
-): { executable: string; args: string[] } => {
-  const parts = command.trim().split(/\s+/);
-  const executable = parts[0];
-  const args = parts.slice(1);
+const parseArgs = (argsString: string): string[] => {
+  const args = argsString.trim().split(/\s+/);
 
-  if (!executable) {
-    throw new Error("Command is empty");
+  if (args.length === 0 || (args.length === 1 && args[0] === "")) {
+    throw new Error("Arguments are empty");
   }
 
-  return { executable, args };
+  return args;
 };
