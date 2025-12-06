@@ -54,7 +54,10 @@ export const executeFfmpeg = async (
  * Executes FFmpeg command using child_process.spawn
  * Returns promise that resolves with stdout/stderr/exitCode
  */
-const runFFmpeg = (argsString: string): Promise<ExecuteFfmpegResponse> => {
+const runFFmpeg = (
+  argsString: string,
+  timeoutMs: number = 5 * 60 * 1000 // Default: 5 minutes
+): Promise<ExecuteFfmpegResponse> => {
   return new Promise((resolve, reject) => {
     const args = parseArgs(argsString);
 
@@ -62,6 +65,16 @@ const runFFmpeg = (argsString: string): Promise<ExecuteFfmpegResponse> => {
 
     let stdout = "";
     let stderr = "";
+    let isTimedOut = false;
+
+    // Set timeout to kill process if it runs too long
+    const timeoutId = setTimeout(() => {
+      isTimedOut = true;
+      ffmpegProcess.kill("SIGKILL");
+      reject(
+        new Error(`FFmpeg process timed out after ${timeoutMs / 1000} seconds`)
+      );
+    }, timeoutMs);
 
     // Capture stdout
     ffmpegProcess.stdout.on("data", (data: Buffer) => {
@@ -75,6 +88,13 @@ const runFFmpeg = (argsString: string): Promise<ExecuteFfmpegResponse> => {
 
     // Handle process completion
     ffmpegProcess.on("close", code => {
+      clearTimeout(timeoutId);
+
+      // Don't resolve if we already timed out
+      if (isTimedOut) {
+        return;
+      }
+
       const exitCode = code ?? -1;
 
       if (exitCode === 0) {
@@ -88,7 +108,11 @@ const runFFmpeg = (argsString: string): Promise<ExecuteFfmpegResponse> => {
 
     // Handle spawn errors (e.g., FFmpeg not found)
     ffmpegProcess.on("error", err => {
-      reject(new Error(`Failed to spawn FFmpeg process: ${err.message}`));
+      clearTimeout(timeoutId);
+
+      if (!isTimedOut) {
+        reject(new Error(`Failed to spawn FFmpeg process: ${err.message}`));
+      }
     });
   });
 };
