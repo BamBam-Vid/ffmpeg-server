@@ -24,7 +24,9 @@ RUN pnpm build
 FROM node:24.11.1-alpine AS production
 
 # Install FFmpeg from Alpine package repository (pinned version)
-RUN apk add --no-cache ffmpeg=8.0.1-r0
+# Note: Trigger errors in ARM64 QEMU emulation are ignored (packages install correctly)
+RUN apk add --no-cache ffmpeg=8.0.1-r0 || true && \
+    command -v ffmpeg && ffmpeg -version
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.1.0 --activate
