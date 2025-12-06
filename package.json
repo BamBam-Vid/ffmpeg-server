@@ -25,6 +25,7 @@
   "author": "Udayan Maurya",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.86.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",

@@ -4,6 +4,15 @@ import { cpus } from "node:os";
 import PQueue from "p-queue";
 import { parse as shellParse } from "shell-quote";
 import { z } from "zod";
+import {
+  parseOutputFiles,
+  createTempDir,
+  resolveOutputPaths,
+  replaceOutputPaths,
+  uploadToSupabase,
+  cleanupTempFiles,
+} from "./lib/ffmpeg-utils.js";
+import type { OutputFile } from "./lib/ffmpeg-utils.js";
 
 const executeFfmpegSchema = z.object({
   args: z.string().min(1),
@@ -27,12 +36,13 @@ interface ExecuteFfmpegResponse {
   stdout: string;
   stderr: string;
   exitCode: number;
+  outputs: OutputFile[];
 }
 
 interface ErrorResponse {
   success: false;
   error: string;
-  errorType: "validation" | "timeout" | "spawn" | "execution" | "parse";
+  errorType: "validation" | "timeout" | "spawn" | "execution" | "parse" | "storage";
   details?: Array<{
     field: string;
     message: string;
@@ -84,69 +94,120 @@ export const executeFfmpeg = async (
 
 /**
  * Executes FFmpeg command using child_process.spawn
- * Returns promise that resolves with stdout/stderr/exitCode
+ * Returns promise that resolves with stdout/stderr/exitCode/outputs
  */
-const runFFmpeg = (
+const runFFmpeg = async (
   argsString: string,
   timeoutMs: number = 5 * 60 * 1000 // Default: 5 minutes
 ): Promise<ExecuteFfmpegResponse> => {
-  return new Promise((resolve, reject) => {
-    const args = parseArgs(argsString);
+  const args = parseArgs(argsString);
 
-    const ffmpegProcess = spawn("ffmpeg", args);
+  // Parse output files from args
+  const outputFiles = parseOutputFiles(args);
 
-    let stdout = "";
-    let stderr = "";
-    let isTimedOut = false;
+  // Create temp directory for outputs
+  const tempDir = await createTempDir();
 
-    // Set timeout to kill process if it runs too long
-    const timeoutId = setTimeout(() => {
-      isTimedOut = true;
-      ffmpegProcess.kill("SIGKILL");
-      reject(
-        new Error(`FFmpeg process timed out after ${timeoutMs / 1000} seconds`)
-      );
-    }, timeoutMs);
+  // Map output files to absolute paths in temp directory
+  const pathMap = resolveOutputPaths(outputFiles, tempDir);
 
-    // Capture stdout
-    ffmpegProcess.stdout.on("data", (data: Buffer) => {
-      stdout += data.toString();
-    });
+  // Replace output paths in args with temp directory paths
+  const modifiedArgs = replaceOutputPaths(args, pathMap);
 
-    // Capture stderr (FFmpeg outputs progress info to stderr)
-    ffmpegProcess.stderr.on("data", (data: Buffer) => {
-      stderr += data.toString();
-    });
+  // Get all temp file paths for cleanup
+  const tempFilePaths = Array.from(pathMap.values());
 
-    // Handle process completion
-    ffmpegProcess.on("close", code => {
-      clearTimeout(timeoutId);
+  try {
+    // Execute FFmpeg with modified args
+    const { stdout, stderr, exitCode } = await new Promise<{
+      stdout: string;
+      stderr: string;
+      exitCode: number;
+    }>((resolve, reject) => {
+      const ffmpegProcess = spawn("ffmpeg", modifiedArgs);
 
-      // Don't resolve if we already timed out
-      if (isTimedOut) {
-        return;
-      }
+      let stdout = "";
+      let stderr = "";
+      let isTimedOut = false;
 
-      const exitCode = code ?? -1;
-
-      if (exitCode === 0) {
-        resolve({ success: true, stdout, stderr, exitCode });
-      } else {
+      // Set timeout to kill process if it runs too long
+      const timeoutId = setTimeout(() => {
+        isTimedOut = true;
+        ffmpegProcess.kill("SIGKILL");
         reject(
-          new Error(`FFmpeg process exited with code ${exitCode}\n${stderr}`)
+          new Error(`FFmpeg process timed out after ${timeoutMs / 1000} seconds`)
         );
-      }
+      }, timeoutMs);
+
+      // Capture stdout
+      ffmpegProcess.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+      });
+
+      // Capture stderr (FFmpeg outputs progress info to stderr)
+      ffmpegProcess.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      // Handle process completion
+      ffmpegProcess.on("close", code => {
+        clearTimeout(timeoutId);
+
+        // Don't resolve if we already timed out
+        if (isTimedOut) {
+          return;
+        }
+
+        const exitCode = code ?? -1;
+
+        if (exitCode === 0) {
+          resolve({ stdout, stderr, exitCode });
+        } else {
+          reject(
+            new Error(`FFmpeg process exited with code ${exitCode}\n${stderr}`)
+          );
+        }
+      });
+
+      // Handle spawn errors (e.g., FFmpeg not found)
+      ffmpegProcess.on("error", err => {
+        clearTimeout(timeoutId);
+
+        if (!isTimedOut) {
+          reject(new Error(`Failed to spawn FFmpeg process: ${err.message}`));
+        }
+      });
     });
 
-    // Handle spawn errors (e.g., FFmpeg not found)
-    ffmpegProcess.on("error", err => {
-      clearTimeout(timeoutId);
+    // Upload all output files to Supabase Storage
+    const uploadedOutputs: OutputFile[] = [];
 
-      if (!isTimedOut) {
-        reject(new Error(`Failed to spawn FFmpeg process: ${err.message}`));
+    for (const [originalPath, tempPath] of pathMap.entries()) {
+      try {
+        const uploadedFile = await uploadToSupabase(tempPath, originalPath);
+        uploadedOutputs.push(uploadedFile);
+      } catch (uploadErr) {
+        // Clean up temp files before throwing
+        await cleanupTempFiles(tempFilePaths);
+        throw uploadErr;
       }
-    });
-  });
+    }
+
+    // Clean up temp files after successful upload
+    await cleanupTempFiles(tempFilePaths);
+
+    return {
+      success: true,
+      stdout,
+      stderr,
+      exitCode,
+      outputs: uploadedOutputs,
+    };
+  } catch (err) {
+    // Clean up temp files on any error
+    await cleanupTempFiles(tempFilePaths);
+    throw err;
+  }
 };
 
 /**
@@ -155,7 +216,7 @@ const runFFmpeg = (
 const categorizeError = (
   err: unknown
 ): {
-  type: "timeout" | "spawn" | "execution" | "parse";
+  type: "timeout" | "spawn" | "execution" | "parse" | "storage";
   message: string;
   statusCode: number;
   exitCode?: number;
@@ -169,6 +230,20 @@ const categorizeError = (
   }
 
   const errorMessage = err.message;
+
+  // Storage error (Supabase upload failures)
+  if (
+    errorMessage.includes("Supabase") ||
+    errorMessage.includes("upload") ||
+    errorMessage.includes("SUPABASE_BUCKET") ||
+    errorMessage.includes("exceeds maximum size")
+  ) {
+    return {
+      type: "storage",
+      message: errorMessage,
+      statusCode: 500,
+    };
+  }
 
   // Timeout error
   if (errorMessage.includes("timed out")) {

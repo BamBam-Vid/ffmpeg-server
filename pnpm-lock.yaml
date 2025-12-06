@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.86.2
+        version: 2.86.2
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -276,6 +279,30 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
+  '@supabase/auth-js@2.86.2':
+    resolution: {integrity: sha512-7k8IAhgSnZuD9Zex2+ohHKY3aWGDd4ls0xlxMGl3/jPyHSSXrIYfmtJyUH0+DPd4B3psBqHC0Ev0/nZEHdW58w==}
+    engines: {node: '>=20.0.0'}
+
+  '@supabase/functions-js@2.86.2':
+    resolution: {integrity: sha512-OLpy3NIlj7q3yGMFwUpPkDPJbRx4aU+u73SiXqiMnA5ARwzVcOReSzI2u4oOqioE+3ud0fRx7sRsfoklBwYOmg==}
+    engines: {node: '>=20.0.0'}
+
+  '@supabase/postgrest-js@2.86.2':
+    resolution: {integrity: sha512-KVgOF2QASvUfQnzMGAmxR7f3ZF/eZ8PFp2F5Q7SAPQlmB83FEaZ7C/QMzfVXXqkMbotfh96xcaBNSKnxowFObA==}
+    engines: {node: '>=20.0.0'}
+
+  '@supabase/realtime-js@2.86.2':
+    resolution: {integrity: sha512-uLUYrOMeK1qXHISxdMFVfBs0sGV5PmqYewIHvLBnMYbb//LERojxfKlVSJBgZ+aAwxANmtQKcprjGZI7DJ6lNQ==}
+    engines: {node: '>=20.0.0'}
+
+  '@supabase/storage-js@2.86.2':
+    resolution: {integrity: sha512-zyR4PkO7R4f4/xRBVJho3Dm7y4512BoCqGmD7LjNV2GVtWt8vEmambiuMB2Ty3l76mqw+ynQyHY8yFWSERrHXA==}
+    engines: {node: '>=20.0.0'}
+
+  '@supabase/supabase-js@2.86.2':
+    resolution: {integrity: sha512-KXoiqFf7zZhL/+lj7oBFFUvVDQ6gy03v9wQ5E++f7xiJUuqmI4DuBhrv8uFo6B2EGTQTA3vkXjbxmYIug/zfWw==}
+    engines: {node: '>=20.0.0'}
+
   '@types/body-parser@1.19.6':
     resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
 
@@ -303,6 +330,9 @@ packages:
   '@types/node@24.10.1':
     resolution: {integrity: sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ==}
 
+  '@types/phoenix@1.6.6':
+    resolution: {integrity: sha512-PIzZZlEppgrpoT2QgbnDU+MMzuR6BbCjllj0bM70lWoejMeNJAxCchxnv7J3XFkI8MpygtRpzXrIlmWUBclP5A==}
+
   '@types/qs@6.14.0':
     resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
 
@@ -317,6 +347,9 @@ packages:
 
   '@types/shell-quote@1.7.5':
     resolution: {integrity: sha512-+UE8GAGRPbJVQDdxi16dgadcBfQ+KG2vgZhV1+3A1XmHbmwcdwhCUwIdy+d3pAGrbvgRoVSjeI9vOWyq376Yzw==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@typescript-eslint/eslint-plugin@8.48.1':
     resolution: {integrity: sha512-X63hI1bxl5ohelzr0LY5coufyl0LJNthld+abwxpCoo6Gq+hSqhKwci7MUWkXo67mzgUK6YFByhmaHmUcuBJmA==}
@@ -708,6 +741,10 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  iceberg-js@0.8.1:
+    resolution: {integrity: sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==}
+    engines: {node: '>=20.0.0'}
+
   iconv-lite@0.7.0:
     resolution: {integrity: sha512-cf6L2Ds3h57VVmkZe+Pn+5APsT7FpqJtEhhieDCvrE2MK5Qk9MyffgQyuxQTm6BChfeZNtcOLHp9IcWRVcIcBQ==}
     engines: {node: '>=0.10.0'}
@@ -1026,6 +1063,9 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
+  tslib@2.8.1:
+    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+
   tsx@4.21.0:
     resolution: {integrity: sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw==}
     engines: {node: '>=18.0.0'}
@@ -1079,6 +1119,18 @@ packages:
 
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
+
+  ws@8.18.3:
+    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
 
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
@@ -1224,6 +1276,44 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
+  '@supabase/auth-js@2.86.2':
+    dependencies:
+      tslib: 2.8.1
+
+  '@supabase/functions-js@2.86.2':
+    dependencies:
+      tslib: 2.8.1
+
+  '@supabase/postgrest-js@2.86.2':
+    dependencies:
+      tslib: 2.8.1
+
+  '@supabase/realtime-js@2.86.2':
+    dependencies:
+      '@types/phoenix': 1.6.6
+      '@types/ws': 8.18.1
+      tslib: 2.8.1
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@supabase/storage-js@2.86.2':
+    dependencies:
+      iceberg-js: 0.8.1
+      tslib: 2.8.1
+
+  '@supabase/supabase-js@2.86.2':
+    dependencies:
+      '@supabase/auth-js': 2.86.2
+      '@supabase/functions-js': 2.86.2
+      '@supabase/postgrest-js': 2.86.2
+      '@supabase/realtime-js': 2.86.2
+      '@supabase/storage-js': 2.86.2
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
@@ -1260,6 +1350,8 @@ snapshots:
     dependencies:
       undici-types: 7.16.0
 
+  '@types/phoenix@1.6.6': {}
+
   '@types/qs@6.14.0': {}
 
   '@types/range-parser@1.2.7': {}
@@ -1274,6 +1366,10 @@ snapshots:
       '@types/node': 24.10.1
 
   '@types/shell-quote@1.7.5': {}
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 24.10.1
 
   '@typescript-eslint/eslint-plugin@8.48.1(@typescript-eslint/parser@8.48.1(eslint@9.39.1)(typescript@5.9.3))(eslint@9.39.1)(typescript@5.9.3)':
     dependencies:
@@ -1759,6 +1855,8 @@ snapshots:
 
   husky@9.1.7: {}
 
+  iceberg-js@0.8.1: {}
+
   iconv-lite@0.7.0:
     dependencies:
       safer-buffer: 2.1.2
@@ -2056,6 +2154,8 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
+  tslib@2.8.1: {}
+
   tsx@4.21.0:
     dependencies:
       esbuild: 0.27.1
@@ -2105,6 +2205,8 @@ snapshots:
   word-wrap@1.2.5: {}
 
   wrappy@1.0.2: {}
+
+  ws@8.18.3: {}
 
   yocto-queue@0.1.0: {}
 

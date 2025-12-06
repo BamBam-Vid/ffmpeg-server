@@ -74,6 +74,10 @@ ESLint enforces:
 - Default port: `5675` (configurable via `PORT` env var)
 - Environment variables loaded via `dotenv` from `.env` file
 - `.env` files are gitignored
+- **Supabase Storage**: Required env vars:
+  - `SUPABASE_URL` - Supabase project URL
+  - `SUPABASE_SERVICE_ROLE_KEY` - Service role key for server-side operations
+  - `SUPABASE_BUCKET` - Storage bucket name for FFmpeg outputs (default: `ffmpeg-outputs`)
 
 ### Express Server Structure
 - Server entry point: `src/index.ts`
@@ -90,8 +94,21 @@ ESLint enforces:
 - **Argument parsing**: Uses `shell-quote` library to safely parse command arguments
 - **Security**: Rejects shell operators (`>`, `|`, `&&`, etc.) in FFmpeg arguments
 - **Validation**: Uses Zod for request body validation
-- **Error categorization**: Distinguishes between validation, timeout, spawn, execution, and parse errors
+- **Error categorization**: Distinguishes between validation, timeout, spawn, execution, parse, and storage errors
 - **Process management**: Uses `child_process.spawn()` for FFmpeg execution with stdout/stderr capture
+- **Output file handling**:
+  - Automatically detects output files from FFmpeg arguments
+  - Creates temporary directory for outputs in `os.tmpdir()/ffmpeg-outputs/`
+  - Replaces output paths with absolute temp paths during execution
+  - Supports multiple output files per command
+- **Supabase Storage integration**:
+  - Automatically uploads all generated output files to Supabase Storage
+  - Storage path format: `{timestamp}-{filename}`
+  - File size limit: 100MB per file
+  - Automatic MIME type detection from file extensions
+  - Returns public URLs in response with metadata (size, contentType)
+  - Atomic operation: all uploads succeed or entire operation fails
+  - Always cleans up temporary files after upload (success or failure)
 
 ## Development Workflow
 
