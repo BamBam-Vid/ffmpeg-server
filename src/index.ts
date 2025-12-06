@@ -19,7 +19,7 @@ app.get("/", (_req, res) => {
   res.json({ message: "FFmpeg Server is running" });
 });
 
-app.post("/executeFfmpeg", executeFfmpeg);
+app.post("/execute-ffmpeg", executeFfmpeg);
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
