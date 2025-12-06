@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { executeFfmpeg } from "./execute-ffmpeg.js";
+import { healthCheck } from "./health-check.js";
 
 dotenv.config();
 
@@ -11,9 +12,7 @@ const PORT = process.env.PORT ?? 5675;
 app.use(cors());
 app.use(express.json());
 
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
+app.get("/health", healthCheck);
 
 app.get("/", (_req, res) => {
   res.json({ message: "FFmpeg Server is running" });

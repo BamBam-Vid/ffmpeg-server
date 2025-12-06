@@ -188,8 +188,11 @@ const categorizeError = (
     };
   }
 
-  // Parse error (empty arguments)
-  if (errorMessage.includes("Arguments are empty")) {
+  // Parse error (empty arguments or shell operators)
+  if (
+    errorMessage.includes("Arguments are empty") ||
+    errorMessage.includes("Shell operators")
+  ) {
     return {
       type: "parse",
       message: errorMessage,
