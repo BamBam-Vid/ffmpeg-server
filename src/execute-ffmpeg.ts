@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { spawn } from "node:child_process";
 import { cpus } from "node:os";
 import PQueue from "p-queue";
+import { parse as shellParse } from "shell-quote";
 import { z } from "zod";
 
 const executeFfmpegSchema = z.object({
@@ -220,13 +221,30 @@ const categorizeError = (
 };
 
 /**
- * Parses arguments string into array
- * Simple split by spaces - doesn't handle quoted arguments yet
+ * Parses arguments string into array using shell-quote library
+ * Handles quotes, escapes, and special characters like a POSIX shell
  */
 const parseArgs = (argsString: string): string[] => {
-  const args = argsString.trim().split(/\s+/);
+  const trimmed = argsString.trim();
 
-  if (args.length === 0 || (args.length === 1 && args[0] === "")) {
+  if (!trimmed) {
+    throw new Error("Arguments are empty");
+  }
+
+  const parsed = shellParse(trimmed);
+
+  // Filter out only string arguments (ignore shell operators like >, |, etc)
+  const args: string[] = [];
+  for (const entry of parsed) {
+    if (typeof entry === "string") {
+      args.push(entry);
+    } else if (typeof entry === "object" && "op" in entry) {
+      // Shell operators like >, |, &&, || are not allowed in FFmpeg args
+      throw new Error(`Shell operators (${entry.op}) are not allowed in FFmpeg arguments`);
+    }
+  }
+
+  if (args.length === 0) {
     throw new Error("Arguments are empty");
   }
 
