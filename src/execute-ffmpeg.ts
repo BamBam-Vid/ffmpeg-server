@@ -15,7 +15,18 @@ import {
 import type { OutputFile } from "./lib/ffmpeg-utils.js";
 
 const executeFfmpegSchema = z.object({
-  args: z.string().min(1),
+  command: z
+    .string()
+    .min(1)
+    .refine(
+      (cmd) => {
+        const trimmed = cmd.trim();
+        return trimmed.startsWith("ffmpeg ");
+      },
+      {
+        message: "Command must start with 'ffmpeg '",
+      }
+    ),
 });
 
 // Calculate max concurrent FFmpeg processes based on CPU count
@@ -70,7 +81,10 @@ export const executeFfmpeg = async (
     });
   }
 
-  const { args } = parseResult.data;
+  const { command } = parseResult.data;
+
+  // Extract arguments by removing 'ffmpeg ' prefix
+  const args = command.trim().substring(7); // Remove 'ffmpeg ' (7 characters)
 
   try {
     // eslint-disable-next-line no-console

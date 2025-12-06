@@ -86,14 +86,18 @@ ESLint enforces:
   - `GET /` - Root endpoint
   - `GET /health` - Health check with timestamp and FFmpeg version verification
   - `POST /execute-ffmpeg` - Execute FFmpeg commands with queue management
+    - Request body: `{ "command": "ffmpeg -i input.mp4 output.mp4" }`
+    - Command MUST start with `ffmpeg ` (validation enforced by Zod)
+    - Returns: `{ success: true, stdout, stderr, exitCode, outputs: [{ filename, path, url, size, contentType }] }`
 
 ### FFmpeg Processing Architecture
 - **Queue-based execution** using `p-queue` to limit concurrent FFmpeg processes
 - **Concurrency limit**: Dynamically calculated as `Math.min(Math.max(Math.floor(cpuCount / 2), 2), 8)`
 - **Timeout protection**: Default 5-minute timeout per FFmpeg process
-- **Argument parsing**: Uses `shell-quote` library to safely parse command arguments
+- **Command validation**: Requires full FFmpeg command starting with `ffmpeg ` (e.g., `ffmpeg -i input.mp4 output.mp4`)
+- **Argument parsing**: Uses `shell-quote` library to safely parse command arguments after stripping `ffmpeg ` prefix
 - **Security**: Rejects shell operators (`>`, `|`, `&&`, etc.) in FFmpeg arguments
-- **Validation**: Uses Zod for request body validation
+- **Validation**: Uses Zod for request body validation with `.refine()` to ensure command starts with `ffmpeg `
 - **Error categorization**: Distinguishes between validation, timeout, spawn, execution, parse, and storage errors
 - **Process management**: Uses `child_process.spawn()` for FFmpeg execution with stdout/stderr capture
 - **Output file handling**:
