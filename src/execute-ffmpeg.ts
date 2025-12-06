@@ -11,23 +11,32 @@ const executeFfmpegSchema = z.object({
 // Calculate max concurrent FFmpeg processes based on CPU count
 // Use half of available CPUs, minimum 2, maximum 8
 const cpuCount = cpus().length;
+// eslint-disable-next-line no-console
+console.log("[cpuCount]: ", cpuCount);
+
 const maxConcurrent = Math.min(Math.max(Math.floor(cpuCount / 2), 2), 8);
+// eslint-disable-next-line no-console
+console.log("[maxConcurrent]: ", maxConcurrent);
 
 // Create queue for managing concurrent FFmpeg processes
 const ffmpegQueue = new PQueue({ concurrency: maxConcurrent });
 
 interface ExecuteFfmpegResponse {
+  success: true;
   stdout: string;
   stderr: string;
   exitCode: number;
 }
 
 interface ErrorResponse {
+  success: false;
   error: string;
+  errorType: "validation" | "timeout" | "spawn" | "execution" | "parse";
   details?: Array<{
     field: string;
     message: string;
   }>;
+  exitCode?: number;
 }
 
 export const executeFfmpeg = async (
@@ -43,7 +52,9 @@ export const executeFfmpeg = async (
     }));
 
     return res.status(400).json({
+      success: false,
       error: "Validation failed",
+      errorType: "validation",
       details,
     });
   }
@@ -60,9 +71,13 @@ export const executeFfmpeg = async (
     const result = await ffmpegQueue.add(() => runFFmpeg(args));
     res.json(result);
   } catch (err) {
-    const errorMessage =
-      err instanceof Error ? err.message : "Unknown error occurred";
-    res.status(500).json({ error: errorMessage });
+    const errorInfo = categorizeError(err);
+    res.status(errorInfo.statusCode).json({
+      success: false,
+      error: errorInfo.message,
+      errorType: errorInfo.type,
+      ...(errorInfo.exitCode !== undefined && { exitCode: errorInfo.exitCode }),
+    });
   }
 };
 
@@ -114,7 +129,7 @@ const runFFmpeg = (
       const exitCode = code ?? -1;
 
       if (exitCode === 0) {
-        resolve({ stdout, stderr, exitCode });
+        resolve({ success: true, stdout, stderr, exitCode });
       } else {
         reject(
           new Error(`FFmpeg process exited with code ${exitCode}\n${stderr}`)
@@ -131,6 +146,77 @@ const runFFmpeg = (
       }
     });
   });
+};
+
+/**
+ * Categorizes errors and determines appropriate HTTP status code
+ */
+const categorizeError = (
+  err: unknown
+): {
+  type: "timeout" | "spawn" | "execution" | "parse";
+  message: string;
+  statusCode: number;
+  exitCode?: number;
+} => {
+  if (!(err instanceof Error)) {
+    return {
+      type: "execution",
+      message: "Unknown error occurred",
+      statusCode: 500,
+    };
+  }
+
+  const errorMessage = err.message;
+
+  // Timeout error
+  if (errorMessage.includes("timed out")) {
+    return {
+      type: "timeout",
+      message: errorMessage,
+      statusCode: 408, // Request Timeout
+    };
+  }
+
+  // Spawn error (FFmpeg not found)
+  if (errorMessage.includes("Failed to spawn")) {
+    return {
+      type: "spawn",
+      message: errorMessage,
+      statusCode: 500,
+    };
+  }
+
+  // Parse error (empty arguments)
+  if (errorMessage.includes("Arguments are empty")) {
+    return {
+      type: "parse",
+      message: errorMessage,
+      statusCode: 400,
+    };
+  }
+
+  // Execution error (non-zero exit code)
+  if (errorMessage.includes("exited with code")) {
+    const exitCodeMatch = errorMessage.match(/exited with code (\d+)/);
+    const exitCode = exitCodeMatch?.[1]
+      ? parseInt(exitCodeMatch[1], 10)
+      : undefined;
+
+    return {
+      type: "execution",
+      message: errorMessage,
+      statusCode: 400, // Bad Request - invalid FFmpeg arguments
+      exitCode,
+    };
+  }
+
+  // Default error
+  return {
+    type: "execution",
+    message: errorMessage,
+    statusCode: 500,
+  };
 };
 
 /**
