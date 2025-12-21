@@ -33,18 +33,23 @@ export const ffmpegQueue: PQueue = new PQueue({ concurrency: maxConcurrent });
 /**
  * Executes FFmpeg command using child_process.spawn
  * Returns promise that resolves with stdout/stderr/exitCode/outputs
+ *
+ * @param argsString - FFmpeg arguments string (without 'ffmpeg' prefix)
+ * @param timeoutMs - Timeout in milliseconds (default: 5 minutes)
+ * @param outputTempDir - Optional custom directory for output files. If not provided, creates its own temp dir.
  */
 export const runFFmpeg = async (
   argsString: string,
-  timeoutMs: number = 5 * 60 * 1000 // Default: 5 minutes
+  timeoutMs: number = 5 * 60 * 1000, // Default: 5 minutes
+  outputTempDir?: string
 ): Promise<ExecuteFfmpegResponse> => {
   const args = parseArgs(argsString);
 
   // Parse output files from args
   const outputFiles = parseOutputFiles(args);
 
-  // Create temp directory for outputs
-  const tempDir = await createTempDir();
+  // Use provided temp directory or create a new one
+  const tempDir = outputTempDir ?? (await createTempDir());
 
   // Map output files to absolute paths in temp directory
   const pathMap = resolveOutputPaths(outputFiles, tempDir);
