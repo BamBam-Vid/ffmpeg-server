@@ -1,6 +1,7 @@
 import { readFile, unlink, stat, mkdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
+import { lookup } from "mime-types";
 import { getSupabaseClient } from "./supabase.js";
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
@@ -116,39 +117,6 @@ export function replaceOutputPaths(args: string[], pathMap: Map<string, string>)
 }
 
 /**
- * Detects MIME type from file extension
- */
-function getMimeType(filename: string): string {
-  const ext = filename.toLowerCase().split(".").pop();
-
-  const mimeTypes: Record<string, string> = {
-    // Video
-    mp4: "video/mp4",
-    webm: "video/webm",
-    avi: "video/x-msvideo",
-    mov: "video/quicktime",
-    mkv: "video/x-matroska",
-    flv: "video/x-flv",
-
-    // Audio
-    mp3: "audio/mpeg",
-    wav: "audio/wav",
-    aac: "audio/aac",
-    ogg: "audio/ogg",
-    m4a: "audio/mp4",
-
-    // Image
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    gif: "image/gif",
-    webp: "image/webp",
-  };
-
-  return mimeTypes[ext || ""] || "application/octet-stream";
-}
-
-/**
  * Uploads a file to Supabase Storage
  * Validates file size (max 100MB)
  * Returns storage metadata
@@ -180,7 +148,7 @@ export async function uploadToSupabase(
   const storagePath = `${timestamp}-${basename(originalFilename)}`;
 
   // Detect MIME type
-  const contentType = getMimeType(originalFilename);
+  const contentType = lookup(originalFilename) || "application/octet-stream";
 
   // Get Supabase client
   const supabase = getSupabaseClient();
