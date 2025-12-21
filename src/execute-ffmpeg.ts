@@ -14,53 +14,6 @@ import {
 } from "./lib/ffmpeg-utils.js";
 import type { OutputFile } from "./lib/ffmpeg-utils.js";
 
-const executeFfmpegSchema = z.object({
-  command: z
-    .string()
-    .min(1)
-    .refine(
-      (cmd) => {
-        const trimmed = cmd.trim();
-        return trimmed.startsWith("ffmpeg ");
-      },
-      {
-        message: "Command must start with 'ffmpeg '",
-      }
-    ),
-});
-
-// Calculate max concurrent FFmpeg processes based on CPU count
-// Use half of available CPUs, minimum 2, maximum 8
-const cpuCount = cpus().length;
-// eslint-disable-next-line no-console
-console.log("[cpuCount]: ", cpuCount);
-
-const maxConcurrent = Math.min(Math.max(Math.floor(cpuCount / 2), 2), 8);
-// eslint-disable-next-line no-console
-console.log("[maxConcurrent]: ", maxConcurrent);
-
-// Create queue for managing concurrent FFmpeg processes
-const ffmpegQueue = new PQueue({ concurrency: maxConcurrent });
-
-interface ExecuteFfmpegResponse {
-  success: true;
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-  outputs: OutputFile[];
-}
-
-interface ErrorResponse {
-  success: false;
-  error: string;
-  errorType: "validation" | "timeout" | "spawn" | "execution" | "parse" | "storage";
-  details?: Array<{
-    field: string;
-    message: string;
-  }>;
-  exitCode?: number;
-}
-
 export const executeFfmpeg = async (
   req: Request,
   res: Response<ExecuteFfmpegResponse | ErrorResponse>
@@ -105,6 +58,53 @@ export const executeFfmpeg = async (
     });
   }
 };
+
+interface ExecuteFfmpegResponse {
+  success: true;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  outputs: OutputFile[];
+}
+
+interface ErrorResponse {
+  success: false;
+  error: string;
+  errorType: "validation" | "timeout" | "spawn" | "execution" | "parse" | "storage";
+  details?: Array<{
+    field: string;
+    message: string;
+  }>;
+  exitCode?: number;
+}
+
+const executeFfmpegSchema = z.object({
+  command: z
+    .string()
+    .min(1)
+    .refine(
+      (cmd) => {
+        const trimmed = cmd.trim();
+        return trimmed.startsWith("ffmpeg ");
+      },
+      {
+        message: "Command must start with 'ffmpeg '",
+      }
+    ),
+});
+
+// Calculate max concurrent FFmpeg processes based on CPU count
+// Use half of available CPUs, minimum 2, maximum 8
+const cpuCount = cpus().length;
+// eslint-disable-next-line no-console
+console.log("[cpuCount]: ", cpuCount);
+
+const maxConcurrent = Math.min(Math.max(Math.floor(cpuCount / 2), 2), 8);
+// eslint-disable-next-line no-console
+console.log("[maxConcurrent]: ", maxConcurrent);
+
+// Create queue for managing concurrent FFmpeg processes
+const ffmpegQueue = new PQueue({ concurrency: maxConcurrent });
 
 /**
  * Executes FFmpeg command using child_process.spawn
@@ -225,6 +225,37 @@ const runFFmpeg = async (
 };
 
 /**
+ * Parses arguments string into array using shell-quote library
+ * Handles quotes, escapes, and special characters like a POSIX shell
+ */
+const parseArgs = (argsString: string): string[] => {
+  const trimmed = argsString.trim();
+
+  if (!trimmed) {
+    throw new Error("Arguments are empty");
+  }
+
+  const parsed = shellParse(trimmed);
+
+  // Filter out only string arguments (ignore shell operators like >, |, etc)
+  const args: string[] = [];
+  for (const entry of parsed) {
+    if (typeof entry === "string") {
+      args.push(entry);
+    } else if (typeof entry === "object" && "op" in entry) {
+      // Shell operators like >, |, &&, || are not allowed in FFmpeg args
+      throw new Error(`Shell operators (${entry.op}) are not allowed in FFmpeg arguments`);
+    }
+  }
+
+  if (args.length === 0) {
+    throw new Error("Arguments are empty");
+  }
+
+  return args;
+};
+
+/**
  * Categorizes errors and determines appropriate HTTP status code
  */
 const categorizeError = (
@@ -310,35 +341,4 @@ const categorizeError = (
     message: errorMessage,
     statusCode: 500,
   };
-};
-
-/**
- * Parses arguments string into array using shell-quote library
- * Handles quotes, escapes, and special characters like a POSIX shell
- */
-const parseArgs = (argsString: string): string[] => {
-  const trimmed = argsString.trim();
-
-  if (!trimmed) {
-    throw new Error("Arguments are empty");
-  }
-
-  const parsed = shellParse(trimmed);
-
-  // Filter out only string arguments (ignore shell operators like >, |, etc)
-  const args: string[] = [];
-  for (const entry of parsed) {
-    if (typeof entry === "string") {
-      args.push(entry);
-    } else if (typeof entry === "object" && "op" in entry) {
-      // Shell operators like >, |, &&, || are not allowed in FFmpeg args
-      throw new Error(`Shell operators (${entry.op}) are not allowed in FFmpeg arguments`);
-    }
-  }
-
-  if (args.length === 0) {
-    throw new Error("Arguments are empty");
-  }
-
-  return args;
 };

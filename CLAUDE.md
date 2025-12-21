@@ -9,12 +9,14 @@ This is an Express.js server built with TypeScript for ffmpeg processing. It use
 ## Commands
 
 ### Development
+
 - `pnpm dev` - Start development server with hot reload (nodemon + tsx)
 - `pnpm build` - Lint and compile TypeScript to JavaScript (output: `dist/`)
 - `pnpm start` - Run production build from `dist/index.js`
 - `pnpm lint` - Run ESLint
 
 ### Setup
+
 ```bash
 nvm use                              # Switch to Node v24.11.1
 corepack enable
@@ -24,12 +26,14 @@ cp .env.example .env                 # Create environment file
 ```
 
 ### Docker
+
 ```bash
 docker build -t ffmpeg-server:latest .
 docker run -p 5675:5675 -e PORT=5675 ffmpeg-server:latest
 ```
 
 ### CI/CD
+
 ```bash
 # Create and push a git tag to trigger Docker image build
 git tag v1.0.0
@@ -42,35 +46,44 @@ git push origin v1.0.0
 ## Architecture
 
 ### Module System
+
 - **ES Modules only** (`"type": "module"` in package.json)
 - Use `import/export` syntax, not `require()`
 - TypeScript config uses `NodeNext` module resolution
 
 ### TypeScript Configuration
+
 Following Total TypeScript best practices:
+
 - **Strict mode**: `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`
 - **Explicit imports**: `verbatimModuleSyntax` requires `import type` for type-only imports
 - **No implicit any**: All types must be explicit or inferred
 - **Source**: `src/` → **Output**: `dist/`
 
 ### Code Quality Rules
+
 ESLint enforces:
+
 - `no-console: error` - Use `// eslint-disable-next-line no-console` only for intentional logging
 - Unused variables must be prefixed with `_` (e.g., `_req`, `_unused`)
 - `prefer-const` for immutable bindings
 - No debugger statements
 
 ### Git Hooks (Husky)
+
 **Pre-commit** (`.husky/pre-commit`):
+
 - Runs `pnpm lint` on all files
 - Runs Gitleaks on staged files (install: `brew install gitleaks`)
 - Will warn if Gitleaks not installed but won't fail
 
 **Pre-push** (`.husky/pre-push`):
+
 - Runs `pnpm build` to ensure TypeScript compiles
 - Fails if linting or compilation fails
 
 ### Environment Configuration
+
 - Default port: `5675` (configurable via `PORT` env var)
 - Environment variables loaded via `dotenv` from `.env` file
 - `.env` files are gitignored
@@ -80,6 +93,7 @@ ESLint enforces:
   - `SUPABASE_BUCKET` - Storage bucket name for FFmpeg outputs (default: `ffmpeg-outputs`)
 
 ### Express Server Structure
+
 - Server entry point: `src/index.ts`
 - Middleware: CORS enabled, JSON body parsing
 - Current endpoints:
@@ -91,6 +105,7 @@ ESLint enforces:
     - Returns: `{ success: true, stdout, stderr, exitCode, outputs: [{ filename, path, url, size, contentType }] }`
 
 ### FFmpeg Processing Architecture
+
 - **Queue-based execution** using `p-queue` to limit concurrent FFmpeg processes
 - **Concurrency limit**: Dynamically calculated as `Math.min(Math.max(Math.floor(cpuCount / 2), 2), 8)`
 - **Timeout protection**: Default 5-minute timeout per FFmpeg process
@@ -125,11 +140,13 @@ ESLint enforces:
 ## GitHub Actions Workflows
 
 ### Build Workflow
+
 - **File**: `.github/workflows/build.yml`
 - **Triggers**: Push/PR to main branch
 - **Steps**: Install dependencies → Run `pnpm build` (lint + TypeScript compilation)
 
 ### Docker Release Workflow
+
 - **File**: `.github/workflows/docker-release.yml`
 - **Triggers**: GitHub Releases only (NOT tag pushes)
 - **Builds**: Multi-platform images (linux/amd64, linux/arm64)
@@ -147,3 +164,35 @@ ESLint enforces:
 - **Type safety**: Leverage `noUncheckedIndexedAccess` - array/object access may be undefined
 - **Imports**: Use `import type` for type-only imports due to `verbatimModuleSyntax`
 - **Docker production install**: Must use `pnpm install --prod --frozen-lockfile --ignore-scripts` to skip Husky prepare script (dev dependency)
+
+## Code Style
+
+### File Organization
+
+For any file, organize code in this order to make the most important information appear first:
+
+1. **Main export(s)** - Primary function/class/component at the top
+2. **Supporting code** - Helper functions and type definitions in the order they're used in the main export
+
+This progressive disclosure pattern makes files easier to scan - the most important code appears first, with supporting details revealed as you read down.
+
+**Example:**
+
+```typescript
+// Main export first
+export const createScript = async (params: CreateScriptParams) => {
+  const result = helperFunction(params);
+  // Implementation using helper functions and types
+};
+
+// Helper functions and types in order of use
+const helperFunction = (params: CreateScriptParams) => { /* ... */ };
+
+export interface CreateScriptParams {
+  provider: "openai" | "gemini";
+  messages: ScriptMessage[];
+}
+
+export type ScriptMessage = /* ... */;
+export type UserMessageContent = /* ... */;
+```
