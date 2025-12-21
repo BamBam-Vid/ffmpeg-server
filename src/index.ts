@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { executeFfmpeg } from "./execute-ffmpeg.js";
+import { executeLlmpeg } from "./execute-llmpeg.js";
 import { healthCheck } from "./health-check.js";
 import { requestIdMiddleware } from "./middleware/request-id.js";
 
@@ -17,6 +18,7 @@ app.use(requestIdMiddleware);
 app.get("/health", healthCheck);
 
 app.post("/execute-ffmpeg", executeFfmpeg);
+app.post("/execute-llmpeg", executeLlmpeg);
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
