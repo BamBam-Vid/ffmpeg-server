@@ -34,6 +34,8 @@ export function parseOutputFiles(args: string[]): string[] {
     "-frames:v", "-frames:a", "-metadata",
     "-filter_complex", "-lavfi", "-map", "-map_metadata",
     "-disposition", "-stream_loop", "-itsoffset",
+    "-crf", "-preset", "-profile", "-level", "-qscale",
+    "-g", "-bf", "-maxrate", "-bufsize", "-pix_fmt",
   ];
 
   for (let i = 0; i < args.length; i++) {

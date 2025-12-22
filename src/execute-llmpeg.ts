@@ -85,7 +85,7 @@ const executeLlmpegSchema = z.object({
     .array(
       z.object({
         name: z.string().optional(),
-        url: z.string().url("Invalid URL format"),
+        url: z.url("Invalid URL format"),
       })
     )
     .min(1, "At least one input file is required"),

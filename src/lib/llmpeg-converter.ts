@@ -49,7 +49,8 @@ export async function convertTaskToFFmpegCommand(
 
     // Extract JSON from response
     const responseText = extractTextContent(message.content);
-    const parsed = JSON.parse(responseText) as {
+    const jsonText = extractJsonFromResponse(responseText);
+    const parsed = JSON.parse(jsonText) as {
       command: string;
       reasoning: string;
     };
@@ -104,4 +105,25 @@ function extractTextContent(
   );
 
   return textBlocks.map((block) => block.text).join("\n");
+}
+
+/**
+ * Extracts JSON from response text, handling markdown code blocks
+ * Supports both ```json...``` and plain JSON
+ */
+function extractJsonFromResponse(responseText: string): string {
+  // Try to extract from markdown JSON code block first
+  const jsonBlockMatch = responseText.match(/```json\s*\n?([\s\S]+?)\n?```/);
+  if (jsonBlockMatch?.[1]) {
+    return jsonBlockMatch[1].trim();
+  }
+
+  // Try generic code block
+  const codeBlockMatch = responseText.match(/```\s*\n?([\s\S]+?)\n?```/);
+  if (codeBlockMatch?.[1]) {
+    return codeBlockMatch[1].trim();
+  }
+
+  // Otherwise return raw text (assume it's already JSON)
+  return responseText.trim();
 }
