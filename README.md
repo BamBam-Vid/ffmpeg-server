@@ -7,7 +7,9 @@ A production-ready HTTP server for executing FFmpeg commands with automatic file
 This server provides a REST API for executing FFmpeg commands remotely. It:
 
 - **Accepts FFmpeg commands via HTTP POST** - Send any FFmpeg command as JSON
+- **Natural language processing** - NEW: Convert plain English to FFmpeg commands using Claude AI
 - **Manages concurrent processing** - Queue-based system prevents resource exhaustion
+- **Automatic input downloads** - Fetches files from HTTP/HTTPS URLs before processing
 - **Uploads results to Supabase Storage** - Automatically stores processed files and returns public URLs
 - **Provides robust error handling** - Categorizes errors (validation, timeout, execution, storage)
 - **Ensures security** - Validates commands, blocks shell operators, enforces timeouts
@@ -30,6 +32,7 @@ docker run -p 5675:5675 \
   -e SUPABASE_URL=your_supabase_url \
   -e SUPABASE_SERVICE_ROLE_KEY=your_service_role_key \
   -e SUPABASE_BUCKET=ffmpeg-outputs \
+  -e ANTHROPIC_API_KEY=your_anthropic_api_key \
   udaian/ffmpeg-server:latest
 ```
 
@@ -74,13 +77,14 @@ pnpm install
 cp .env.example .env
 ```
 
-Edit `.env` with your Supabase credentials:
+Edit `.env` with your credentials:
 ```env
 PORT=5675
 NODE_ENV=development
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_BUCKET=ffmpeg-outputs
+ANTHROPIC_API_KEY=your-anthropic-api-key
 ```
 
 ### 5. Set up Supabase Storage
@@ -117,11 +121,21 @@ Response:
 
 ### Execute FFmpeg Command
 
+**Direct FFmpeg Command:**
 ```bash
 curl -X POST http://localhost:5675/execute-ffmpeg \
   -H "Content-Type: application/json" \
   -d '{
     "command": "ffmpeg -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 -c:v libx264 -pix_fmt yuv420p output.mp4"
+  }'
+```
+
+**With URL Inputs (automatically downloaded):**
+```bash
+curl -X POST http://localhost:5675/execute-ffmpeg \
+  -H "Content-Type: application/json" \
+  -d '{
+    "command": "ffmpeg -i https://example.com/video1.mp4 -i https://example.com/video2.mp4 -filter_complex \"[0:v][1:v]concat=n=2:v=1:a=0\" output.mp4"
   }'
 ```
 
@@ -143,6 +157,30 @@ Response:
   ]
 }
 ```
+
+### Execute with Natural Language (LLMpeg)
+
+**NEW:** Convert plain English to FFmpeg commands using Claude AI:
+
+```bash
+curl -X POST http://localhost:5675/execute-llmpeg \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task": "concatenate these videos one after another",
+    "inputs": [
+      {"url": "https://example.com/video1.mp4"},
+      {"url": "https://example.com/video2.mp4"}
+    ]
+  }'
+```
+
+The server will:
+1. Download input files
+2. Use Claude AI to generate appropriate FFmpeg command
+3. Execute the command
+4. Upload and return results
+
+Response format is identical to `/execute-ffmpeg`.
 
 ## Available Scripts
 
@@ -218,8 +256,17 @@ ffmpeg-server/
 ├── src/
 │   ├── index.ts                # Server entry point
 │   ├── execute-ffmpeg.ts       # FFmpeg execution handler
+│   ├── execute-llmpeg.ts       # Natural language FFmpeg handler
+│   ├── middleware/
+│   │   └── request-id.ts       # Request ID generation
+│   ├── types/
+│   │   └── express.d.ts        # Express type extensions
 │   └── lib/
-│       └── ffmpeg-utils.ts     # File parsing, temp dirs, Supabase uploads
+│       ├── ffmpeg-execution.ts # Shared FFmpeg execution logic
+│       ├── ffmpeg-utils.ts     # File parsing, temp dirs, Supabase uploads
+│       ├── llmpeg-converter.ts # Claude AI integration
+│       ├── input-download.ts   # URL downloading with queue
+│       └── request-workspace.ts # Request-scoped temp directories
 ├── dist/                       # Compiled JavaScript (gitignored)
 ├── package.json                # Dependencies and scripts
 ├── tsconfig.json               # TypeScript configuration (strict mode)
@@ -472,19 +519,26 @@ This project includes VSCode configuration for:
 | `SUPABASE_URL` | Yes | - | Your Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | - | Service role key for storage operations |
 | `SUPABASE_BUCKET` | No | `ffmpeg-outputs` | Storage bucket name |
+| `ANTHROPIC_API_KEY` | Yes* | - | Anthropic API key for `/execute-llmpeg` endpoint |
+
+\* Required only if using the `/execute-llmpeg` endpoint
 
 ## Roadmap
+
+Completed features:
+- [x] Support for input file URLs (download before processing)
+- [x] Natural language FFmpeg command generation
 
 Potential future enhancements:
 
 - [ ] Webhook support for async job notifications
 - [ ] Job status polling endpoint
-- [ ] Support for input file URLs (download before processing)
 - [ ] Custom timeout configuration per request
 - [ ] Rate limiting and authentication
 - [ ] Progress tracking for long-running operations
 - [ ] Support for multiple storage backends (S3, GCS, etc.)
 - [ ] FFmpeg preset templates
+- [ ] Streaming support for real-time processing
 
 ## Troubleshooting
 

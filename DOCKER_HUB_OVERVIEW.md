@@ -5,6 +5,8 @@ A production-ready HTTP server for executing FFmpeg commands with automatic file
 ## Features
 
 - **Queue-based FFmpeg Processing** - Handles concurrent FFmpeg operations with intelligent CPU-based concurrency limits
+- **Natural Language Processing** - NEW: Convert plain English to FFmpeg commands using Claude AI
+- **Automatic Input Downloads** - Fetches files from HTTP/HTTPS URLs before processing
 - **Automatic File Upload** - Seamlessly uploads processed files to Supabase Storage with public URLs
 - **Security First** - Command validation, shell operator blocking, and timeout protection
 - **Multi-platform Support** - Pre-built images for `linux/amd64` and `linux/arm64`
@@ -20,8 +22,11 @@ docker run -p 5675:5675 \
   -e SUPABASE_URL=your_supabase_url \
   -e SUPABASE_SERVICE_ROLE_KEY=your_service_role_key \
   -e SUPABASE_BUCKET=ffmpeg-outputs \
+  -e ANTHROPIC_API_KEY=your_anthropic_api_key \
   udaian/ffmpeg-server:latest
 ```
+
+**Note:** `ANTHROPIC_API_KEY` is only required if using the `/execute-llmpeg` endpoint.
 
 The server will be available at `http://localhost:5675`
 
@@ -47,6 +52,9 @@ curl -X POST http://localhost:5675/execute-ffmpeg \
 | `SUPABASE_URL` | Yes | - | Your Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | - | Service role key for server-side operations |
 | `SUPABASE_BUCKET` | No | `ffmpeg-outputs` | Storage bucket name for processed files |
+| `ANTHROPIC_API_KEY` | Yes* | - | Anthropic API key for natural language endpoint |
+
+\* Required only for `/execute-llmpeg` endpoint
 
 ## API Endpoints
 
@@ -74,8 +82,16 @@ Execute FFmpeg commands with automatic file upload to Supabase.
 }
 ```
 
+**With URL Inputs (automatically downloaded):**
+```json
+{
+  "command": "ffmpeg -i https://example.com/video.mp4 -vf scale=1280:720 output.mp4"
+}
+```
+
 **Requirements:**
 - Command MUST start with `ffmpeg ` (space after ffmpeg)
+- HTTP/HTTPS URLs in commands are automatically downloaded
 - Shell operators (`>`, `|`, `&&`, etc.) are not allowed
 - Maximum execution time: 5 minutes
 - File size limit: 100MB per output file
@@ -113,6 +129,42 @@ Execute FFmpeg commands with automatic file upload to Supabase.
   ]
 }
 ```
+
+### `POST /execute-llmpeg`
+
+Execute FFmpeg operations using natural language descriptions powered by Claude AI.
+
+**Request Body:**
+```json
+{
+  "task": "concatenate these videos one after another",
+  "inputs": [
+    {"url": "https://example.com/video1.mp4"},
+    {"url": "https://example.com/video2.mp4", "name": "second-video"}
+  ]
+}
+```
+
+**How it works:**
+1. Downloads all input files from URLs
+2. Uses Claude AI to generate appropriate FFmpeg command
+3. Executes the generated command
+4. Uploads results to Supabase Storage
+
+**Requirements:**
+- At least one input file required
+- Each input must have a valid URL
+- Optional `name` field for better context
+- Requires `ANTHROPIC_API_KEY` environment variable
+
+**Response:** Same format as `/execute-ffmpeg`
+
+**Example Tasks:**
+- "concatenate these videos one after another"
+- "extract audio from this video"
+- "create a thumbnail at 5 seconds"
+- "convert to 720p resolution"
+- "combine videos side by side"
 
 ## Usage Examples
 
@@ -166,6 +218,23 @@ curl -X POST http://localhost:5675/execute-ffmpeg \
   }'
 ```
 
+### Natural Language Processing (LLMpeg)
+
+```bash
+curl -X POST http://localhost:5675/execute-llmpeg \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task": "concatenate these videos",
+    "inputs": [
+      {"url": "https://example.com/intro.mp4"},
+      {"url": "https://example.com/main.mp4"},
+      {"url": "https://example.com/outro.mp4"}
+    ]
+  }'
+```
+
+The AI will automatically generate and execute the appropriate FFmpeg command.
+
 ## Docker Compose
 
 Create a `docker-compose.yml`:
@@ -183,6 +252,7 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - SUPABASE_BUCKET=ffmpeg-outputs
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}  # Optional: for /execute-llmpeg
     restart: unless-stopped
 ```
 
@@ -232,13 +302,15 @@ docker run -p 5675:5675 \
 - Automatically prevents resource exhaustion
 
 ### File Processing Flow
-1. Validate FFmpeg command
-2. Parse output file paths
-3. Create temporary directory
-4. Execute FFmpeg with temp paths
-5. Upload all outputs to Supabase Storage
-6. Return public URLs with metadata
-7. Clean up temporary files
+1. Validate request (FFmpeg command or natural language task)
+2. Download input files from URLs (if any)
+3. Generate FFmpeg command (via Claude AI for `/execute-llmpeg`)
+4. Parse output file paths
+5. Create request-scoped temporary directories
+6. Execute FFmpeg with temp paths
+7. Upload all outputs to Supabase Storage
+8. Return public URLs with metadata
+9. Clean up temporary files and directories
 
 ### Security Features
 - Command validation (must start with `ffmpeg `)

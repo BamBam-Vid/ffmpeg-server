@@ -91,18 +91,25 @@ ESLint enforces:
   - `SUPABASE_URL` - Supabase project URL
   - `SUPABASE_SERVICE_ROLE_KEY` - Service role key for server-side operations
   - `SUPABASE_BUCKET` - Storage bucket name for FFmpeg outputs (default: `ffmpeg-outputs`)
+- **Anthropic API**: Required for `/execute-llmpeg` endpoint:
+  - `ANTHROPIC_API_KEY` - Anthropic API key for Claude Sonnet 4
 
 ### Express Server Structure
 
 - Server entry point: `src/index.ts`
-- Middleware: CORS enabled, JSON body parsing
+- Middleware: CORS enabled, JSON body parsing, request ID generation
 - Current endpoints:
-  - `GET /` - Root endpoint
   - `GET /health` - Health check with timestamp and FFmpeg version verification
   - `POST /execute-ffmpeg` - Execute FFmpeg commands with queue management
     - Request body: `{ "command": "ffmpeg -i input.mp4 output.mp4" }`
     - Command MUST start with `ffmpeg ` (validation enforced by Zod)
+    - Input files can be HTTP/HTTPS URLs (automatically downloaded)
     - Returns: `{ success: true, stdout, stderr, exitCode, outputs: [{ filename, path, url, size, contentType }] }`
+  - `POST /execute-llmpeg` - Natural language FFmpeg command generation and execution
+    - Request body: `{ "task": "concatenate videos", "inputs": [{ "name": "video1", "url": "https://..." }, ...] }`
+    - Uses Claude Sonnet 4 to convert natural language to FFmpeg commands
+    - Automatically downloads input files and executes generated command
+    - Returns: Same format as `/execute-ffmpeg`
 
 ### FFmpeg Processing Architecture
 
@@ -115,19 +122,47 @@ ESLint enforces:
 - **Validation**: Uses Zod for request body validation with `.refine()` to ensure command starts with `ffmpeg `
 - **Error categorization**: Distinguishes between validation, timeout, spawn, execution, parse, and storage errors
 - **Process management**: Uses `child_process.spawn()` for FFmpeg execution with stdout/stderr capture
+- **Request-scoped workspaces**:
+  - Each request gets isolated temp directory: `/tmp/{requestId}/inputs` and `/tmp/{requestId}/outputs`
+  - Uses `crypto.randomUUID()` for request IDs (stored in `res.locals.requestId`)
+  - Automatic cleanup in finally block ensures resources are freed
+  - Prevents filename collisions between concurrent requests
+- **Input file downloading**:
+  - HTTP/HTTPS URLs in FFmpeg commands are automatically detected and downloaded
+  - Global download queue limits concurrent downloads to 12 across all requests
+  - Downloads to request-scoped inputs directory
+  - URL replacement: URLs in commands replaced with local file paths
+  - Prevents network I/O overhead and FFmpeg buffer issues with many URLs
 - **Output file handling**:
   - Automatically detects output files from FFmpeg arguments
-  - Creates temporary directory for outputs in `os.tmpdir()/ffmpeg-outputs/`
-  - Replaces output paths with absolute temp paths during execution
+  - Parses arguments to identify flags that require values (prevents false positives)
+  - Replaces output paths with absolute paths in request outputs directory
   - Supports multiple output files per command
 - **Supabase Storage integration**:
   - Automatically uploads all generated output files to Supabase Storage
   - Storage path format: `{timestamp}-{filename}`
   - File size limit: 100MB per file
-  - Automatic MIME type detection from file extensions
+  - Automatic MIME type detection using `mime-types` package
   - Returns public URLs in response with metadata (size, contentType)
   - Atomic operation: all uploads succeed or entire operation fails
   - Always cleans up temporary files after upload (success or failure)
+
+### Natural Language Processing (LLMpeg)
+
+- **Claude API integration**:
+  - Uses Claude Sonnet 4 (`claude-sonnet-4-20250514`) for command generation
+  - Converts natural language tasks to FFmpeg commands
+  - Prompt engineering: Instructs Claude to generate only FFmpeg arguments (no `ffmpeg` prefix)
+  - Response format: JSON with `command` and `reasoning` fields
+  - Handles markdown-wrapped JSON (```json...```) and plain JSON responses
+  - Error handling for Anthropic API failures
+- **Workflow**:
+  1. Download input files from URLs
+  2. Build context-aware prompt with task + input file paths
+  3. Call Claude API to generate FFmpeg command
+  4. Execute generated command using shared FFmpeg queue
+  5. Upload outputs to Supabase Storage
+  6. Return results to user
 
 ## Development Workflow
 
