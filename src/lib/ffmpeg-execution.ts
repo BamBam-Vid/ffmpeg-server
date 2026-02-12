@@ -17,12 +17,16 @@ import type { OutputFile } from "./ffmpeg-utils.js";
 // ============================================================================
 
 // Calculate max concurrent FFmpeg processes based on CPU count
-// Use half of available CPUs, minimum 2, maximum 8
+// Production: 80% of available CPUs (minimum 1)
+// Non-production: half of CPUs, minimum 2, maximum 8
 const cpuCount = cpus().length;
+const isProduction = process.env.NODE_ENV === "production";
 // eslint-disable-next-line no-console
 console.log("[cpuCount]: ", cpuCount);
 
-export const maxConcurrent = Math.min(Math.max(Math.floor(cpuCount / 2), 2), 8);
+export const maxConcurrent = isProduction
+  ? Math.max(Math.floor(cpuCount * 0.8), 1)
+  : Math.min(Math.max(Math.floor(cpuCount / 2), 2), 8);
 // eslint-disable-next-line no-console
 console.log("[maxConcurrent]: ", maxConcurrent);
 
