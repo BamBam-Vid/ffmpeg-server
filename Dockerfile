@@ -25,7 +25,7 @@ FROM node:24.11.1-alpine AS production
 
 # Install FFmpeg from Alpine package repository (pinned version)
 # Note: ARM64 QEMU builds may fail on post-install triggers but packages install correctly
-RUN apk add --no-cache ffmpeg=8.0.1-r0 || true
+RUN apk add --no-cache 'ffmpeg=~8.0' || true
 RUN ffmpeg -version
 
 # Install pnpm
