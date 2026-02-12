@@ -201,6 +201,37 @@ ESLint enforces:
 - **Imports**: Use `import type` for type-only imports due to `verbatimModuleSyntax`
 - **Docker production install**: Must use `pnpm install --prod --frozen-lockfile --ignore-scripts` to skip Husky prepare script (dev dependency)
 
+## Documentation Guidance
+
+When writing docs for this project, keep them **minimal and complete**:
+
+- Explain only what someone needs to get started and succeed
+- Avoid deep implementation details unless required for usage
+- Prefer short, copy-paste-ready commands and clear required inputs
+
+### README Must Include
+
+1. **How to use the server**
+   - Quick start (local run)
+   - Core endpoint usage
+2. **How to deploy the server**
+   - Docker-based deployment steps
+   - Required runtime configuration
+3. **How to contribute**
+   - Setup, lint/build checks, and PR expectations
+
+### Docker Hub Docs Must Include
+
+1. **How to deploy**
+   - `docker run` example(s)
+   - Environment variables list with clear labels:
+     - Required
+     - Optional (with defaults where relevant)
+2. **How `execute-ffmpeg` works**
+   - Request shape
+   - Command rules (must start with `ffmpeg`)
+   - Response shape (including outputs)
+
 ## Code Style
 
 ### File Organization

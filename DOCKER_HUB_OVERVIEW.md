@@ -1,108 +1,86 @@
 # FFmpeg Server
 
-A production-ready HTTP server for executing FFmpeg commands with automatic file upload to Supabase Storage. Built with TypeScript, Express, and modern best practices.
+A production-ready HTTP server for executing FFmpeg commands with automatic file upload to Supabase Storage.
 
-## Features
-
-- **Queue-based FFmpeg Processing** - Handles concurrent FFmpeg operations with intelligent CPU-based concurrency limits
-- **Natural Language Processing** - NEW: Convert plain English to FFmpeg commands using Claude AI
-- **Automatic Input Downloads** - Fetches files from HTTP/HTTPS URLs before processing
-- **Automatic File Upload** - Seamlessly uploads processed files to Supabase Storage with public URLs
-- **Security First** - Command validation, shell operator blocking, and timeout protection
-- **Multi-platform Support** - Pre-built images for `linux/amd64` and `linux/arm64`
-- **Health Monitoring** - Built-in health check endpoint with FFmpeg version verification
-- **Production Ready** - Comprehensive error handling, logging, and robust process management
-
-## Quick Start
-
-### Basic Usage
+## How to Deploy
 
 ```bash
 docker run -p 5675:5675 \
   -e SUPABASE_URL=your_supabase_url \
   -e SUPABASE_SERVICE_ROLE_KEY=your_service_role_key \
   -e SUPABASE_BUCKET=ffmpeg-outputs \
-  -e ANTHROPIC_API_KEY=your_anthropic_api_key \
   udaian/ffmpeg-server:latest
 ```
 
-**Note:** `ANTHROPIC_API_KEY` is only required if using the `/execute-llmpeg` endpoint.
-
-The server will be available at `http://localhost:5675`
-
-### Test the Server
+Test it:
 
 ```bash
-# Health check
 curl http://localhost:5675/health
+```
 
-# Execute FFmpeg command
+### Environment Variables
+
+**Required:**
+
+| Variable | Description |
+|----------|-------------|
+| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key for storage operations |
+
+**Optional:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `5675` | HTTP server port |
+| `NODE_ENV` | `development` | Environment (`development` / `production`) |
+| `SUPABASE_BUCKET` | `ffmpeg-outputs` | Storage bucket name |
+| `MAX_OUTPUT_FILE_SIZE_BYTES` | `104857600` | Max output file size in bytes (100MB) |
+| `ANTHROPIC_API_KEY` | - | Required only for `/execute-llmpeg` endpoint |
+
+### Supported Platforms
+
+- `linux/amd64` (x86_64)
+- `linux/arm64` (ARM64/Apple Silicon)
+
+### Version Tags
+
+- `latest` — Latest stable release
+- `1` / `1.0` / `1.0.0` — Semantic version pinning
+
+## How `execute-ffmpeg` Works
+
+Send FFmpeg commands via `POST /execute-ffmpeg`. The server validates the command, executes it, uploads output files to Supabase Storage, and returns public URLs.
+
+### Request
+
+```bash
 curl -X POST http://localhost:5675/execute-ffmpeg \
   -H "Content-Type: application/json" \
   -d '{
-    "command": "ffmpeg -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 -c:v libx264 -pix_fmt yuv420p output.mp4"
+    "command": "ffmpeg -i https://example.com/input.mp4 -vf scale=1280:720 output.mp4"
   }'
 ```
 
-## Environment Variables
+| Field | Required | Description |
+|-------|----------|-------------|
+| `command` | Yes | FFmpeg command (must start with `ffmpeg `) |
+| `supabaseBucket` | No | Override default storage bucket |
+| `supabasePath` | No | Path prefix for uploaded files |
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PORT` | No | `5675` | HTTP server port |
-| `SUPABASE_URL` | Yes | - | Your Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | - | Service role key for server-side operations |
-| `SUPABASE_BUCKET` | No | `ffmpeg-outputs` | Storage bucket name for processed files |
-| `ANTHROPIC_API_KEY` | Yes* | - | Anthropic API key for natural language endpoint |
+**Command rules:**
 
-\* Required only for `/execute-llmpeg` endpoint
+- Must start with `ffmpeg `
+- Input files can be HTTP/HTTPS URLs (automatically downloaded)
+- Shell operators (`>`, `|`, `&&`, etc.) are rejected
+- 5-minute timeout per command
 
-## API Endpoints
+### Response
 
-### `GET /health`
+**Success (200):**
 
-Health check endpoint that verifies FFmpeg availability.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "timestamp": "2025-12-06T10:30:00.000Z",
-  "ffmpegVersion": "ffmpeg version 7.1"
-}
-```
-
-### `POST /execute-ffmpeg`
-
-Execute FFmpeg commands with automatic file upload to Supabase.
-
-**Request Body:**
-```json
-{
-  "command": "ffmpeg -i input.mp4 -vf scale=1280:720 output.mp4"
-}
-```
-
-**With URL Inputs (automatically downloaded):**
-```json
-{
-  "command": "ffmpeg -i https://example.com/video.mp4 -vf scale=1280:720 output.mp4"
-}
-```
-
-**Requirements:**
-- Command MUST start with `ffmpeg ` (space after ffmpeg)
-- HTTP/HTTPS URLs in commands are automatically downloaded
-- Shell operators (`>`, `|`, `&&`, etc.) are not allowed
-- Maximum execution time: 5 minutes
-- File size limit: 100MB per output file
-
-**Success Response (200):**
 ```json
 {
   "success": true,
-  "stdout": "",
-  "stderr": "ffmpeg output logs...",
-  "exitCode": 0,
   "outputs": [
     {
       "filename": "output.mp4",
@@ -111,273 +89,59 @@ Execute FFmpeg commands with automatic file upload to Supabase.
       "size": 1048576,
       "contentType": "video/mp4"
     }
-  ]
+  ],
+  "stdout": "",
+  "stderr": "ffmpeg output logs...",
+  "exitCode": 0
 }
 ```
 
-**Error Response (4xx/5xx):**
+**Error (4xx/5xx):**
+
 ```json
 {
   "success": false,
   "error": "Error message",
-  "errorType": "validation|timeout|spawn|execution|parse|storage",
-  "details": [
-    {
-      "field": "command",
-      "message": "Command must start with 'ffmpeg '"
-    }
-  ]
+  "errorType": "validation|timeout|spawn|execution|parse|storage"
 }
 ```
+
+## Other Endpoints
+
+### `GET /health`
+
+Returns server status and FFmpeg version.
 
 ### `POST /execute-llmpeg`
 
-Execute FFmpeg operations using natural language descriptions powered by Claude AI.
-
-**Request Body:**
-```json
-{
-  "task": "concatenate these videos one after another",
-  "inputs": [
-    {"url": "https://example.com/video1.mp4"},
-    {"url": "https://example.com/video2.mp4", "name": "second-video"}
-  ]
-}
-```
-
-**How it works:**
-1. Downloads all input files from URLs
-2. Uses Claude AI to generate appropriate FFmpeg command
-3. Executes the generated command
-4. Uploads results to Supabase Storage
-
-**Requirements:**
-- At least one input file required
-- Each input must have a valid URL
-- Optional `name` field for better context
-- Requires `ANTHROPIC_API_KEY` environment variable
-
-**Response:** Same format as `/execute-ffmpeg`
-
-**Example Tasks:**
-- "concatenate these videos one after another"
-- "extract audio from this video"
-- "create a thumbnail at 5 seconds"
-- "convert to 720p resolution"
-- "combine videos side by side"
-
-## Usage Examples
-
-### Convert Video Format
-
-```bash
-curl -X POST http://localhost:5675/execute-ffmpeg \
-  -H "Content-Type: application/json" \
-  -d '{
-    "command": "ffmpeg -i input.mp4 -c:v libx264 -preset fast output.mp4"
-  }'
-```
-
-### Extract Audio from Video
-
-```bash
-curl -X POST http://localhost:5675/execute-ffmpeg \
-  -H "Content-Type: application/json" \
-  -d '{
-    "command": "ffmpeg -i video.mp4 -vn -acodec libmp3lame -q:a 2 audio.mp3"
-  }'
-```
-
-### Generate Thumbnail
-
-```bash
-curl -X POST http://localhost:5675/execute-ffmpeg \
-  -H "Content-Type: application/json" \
-  -d '{
-    "command": "ffmpeg -i video.mp4 -ss 00:00:05 -vframes 1 thumbnail.jpg"
-  }'
-```
-
-### Create Video from Test Pattern
-
-```bash
-curl -X POST http://localhost:5675/execute-ffmpeg \
-  -H "Content-Type: application/json" \
-  -d '{
-    "command": "ffmpeg -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 -c:v libx264 -pix_fmt yuv420p test.mp4"
-  }'
-```
-
-### Multiple Output Files
-
-```bash
-curl -X POST http://localhost:5675/execute-ffmpeg \
-  -H "Content-Type: application/json" \
-  -d '{
-    "command": "ffmpeg -i input.mp4 -vf scale=1920:1080 hd.mp4 -vf scale=1280:720 sd.mp4"
-  }'
-```
-
-### Natural Language Processing (LLMpeg)
+Convert natural language to FFmpeg commands using Claude AI. Requires `ANTHROPIC_API_KEY`.
 
 ```bash
 curl -X POST http://localhost:5675/execute-llmpeg \
   -H "Content-Type: application/json" \
   -d '{
-    "task": "concatenate these videos",
+    "task": "concatenate these videos one after another",
     "inputs": [
-      {"url": "https://example.com/intro.mp4"},
-      {"url": "https://example.com/main.mp4"},
-      {"url": "https://example.com/outro.mp4"}
+      {"url": "https://example.com/video1.mp4"},
+      {"url": "https://example.com/video2.mp4"}
     ]
   }'
 ```
 
-The AI will automatically generate and execute the appropriate FFmpeg command.
+| Field | Required | Description |
+|-------|----------|-------------|
+| `task` | Yes | Natural language description of the FFmpeg task |
+| `inputs` | Yes | Array of `{ url: string }` input files (min 1) |
+| `supabaseBucket` | No | Override default storage bucket |
+| `supabasePath` | No | Path prefix for uploaded files |
 
-## Docker Compose
-
-Create a `docker-compose.yml`:
-
-```yaml
-version: '3.8'
-
-services:
-  ffmpeg-server:
-    image: udaian/ffmpeg-server:latest
-    ports:
-      - "5675:5675"
-    environment:
-      - PORT=5675
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - SUPABASE_BUCKET=ffmpeg-outputs
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}  # Optional: for /execute-llmpeg
-    restart: unless-stopped
-```
-
-Run with:
-```bash
-docker-compose up -d
-```
-
-## Advanced Configuration
-
-### Custom Port
-
-```bash
-docker run -p 8080:8080 \
-  -e PORT=8080 \
-  -e SUPABASE_URL=your_url \
-  -e SUPABASE_SERVICE_ROLE_KEY=your_key \
-  udaian/ffmpeg-server:latest
-```
-
-### Volume Mounting (for debugging)
-
-```bash
-docker run -p 5675:5675 \
-  -v $(pwd)/logs:/app/logs \
-  -e SUPABASE_URL=your_url \
-  -e SUPABASE_SERVICE_ROLE_KEY=your_key \
-  udaian/ffmpeg-server:latest
-```
-
-### Resource Limits
-
-```bash
-docker run -p 5675:5675 \
-  --cpus="2.0" \
-  --memory="4g" \
-  -e SUPABASE_URL=your_url \
-  -e SUPABASE_SERVICE_ROLE_KEY=your_key \
-  udaian/ffmpeg-server:latest
-```
-
-## Architecture
-
-### Queue Management
-- Concurrent FFmpeg processes: `min(max(floor(CPU_COUNT / 2), 2), 8)`
-- Example: 16 CPU system = 8 concurrent processes
-- Automatically prevents resource exhaustion
-
-### File Processing Flow
-1. Validate request (FFmpeg command or natural language task)
-2. Download input files from URLs (if any)
-3. Generate FFmpeg command (via Claude AI for `/execute-llmpeg`)
-4. Parse output file paths
-5. Create request-scoped temporary directories
-6. Execute FFmpeg with temp paths
-7. Upload all outputs to Supabase Storage
-8. Return public URLs with metadata
-9. Clean up temporary files and directories
-
-### Security Features
-- Command validation (must start with `ffmpeg `)
-- Shell operator blocking (`>`, `|`, `&&`, etc.)
-- 5-minute execution timeout
-- 100MB file size limit per output
-- No arbitrary code execution
-
-## Troubleshooting
-
-### FFmpeg Not Found
-If you see "Failed to spawn FFmpeg process", the image should include FFmpeg. Verify with:
-```bash
-docker run udaian/ffmpeg-server:latest ffmpeg -version
-```
-
-### Connection Refused
-Ensure the port mapping matches the `PORT` environment variable:
-```bash
-docker run -p 5675:5675 -e PORT=5675 udaian/ffmpeg-server:latest
-```
-
-### Supabase Upload Failures
-Check your environment variables:
-```bash
-# Test with debug output
-docker run -p 5675:5675 \
-  -e SUPABASE_URL=your_url \
-  -e SUPABASE_SERVICE_ROLE_KEY=your_key \
-  -e SUPABASE_BUCKET=ffmpeg-outputs \
-  udaian/ffmpeg-server:latest
-```
-
-### Timeout Errors
-For longer operations, consider:
-- Breaking large files into chunks
-- Using faster encoding presets (`-preset ultrafast`)
-- Increasing resources with `--cpus` and `--memory`
-
-## Supported Platforms
-
-- `linux/amd64` (x86_64)
-- `linux/arm64` (ARM64/Apple Silicon)
-
-Built on Node.js v24.11.1 with FFmpeg 7.1
-
-## Version Tags
-
-- `latest` - Latest stable release
-- `1` - Major version 1
-- `1.0` - Minor version 1.0
-- `1.0.0` - Specific patch version
+Response format is identical to `/execute-ffmpeg`.
 
 ## Links
 
-- **GitHub Repository**: https://github.com/udaian/ffmpeg-server
-- **Docker Hub**: https://hub.docker.com/r/udaian/ffmpeg-server
-- **Issue Tracker**: https://github.com/udaian/ffmpeg-server/issues
+- [GitHub](https://github.com/udaian/ffmpeg-server)
+- [Issue Tracker](https://github.com/udaian/ffmpeg-server/issues)
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Author
-
-Udayan Maurya
-
----
-
-**Note:** This server is designed for controlled environments. Always validate and sanitize FFmpeg commands in production. Never expose directly to untrusted users without additional authentication and authorization layers.
+MIT
