@@ -84,6 +84,7 @@ NODE_ENV=development
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_BUCKET=ffmpeg-outputs
+MAX_OUTPUT_FILE_SIZE_BYTES=104857600
 ANTHROPIC_API_KEY=your-anthropic-api-key
 ```
 
@@ -519,6 +520,7 @@ This project includes VSCode configuration for:
 | `SUPABASE_URL` | Yes | - | Your Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | - | Service role key for storage operations |
 | `SUPABASE_BUCKET` | No | `ffmpeg-outputs` | Storage bucket name |
+| `MAX_OUTPUT_FILE_SIZE_BYTES` | No | `104857600` | Max output file size before upload (in bytes) |
 | `ANTHROPIC_API_KEY` | Yes* | - | Anthropic API key for `/execute-llmpeg` endpoint |
 
 \* Required only if using the `/execute-llmpeg` endpoint

@@ -4,8 +4,6 @@ import { tmpdir } from "node:os";
 import { lookup } from "mime-types";
 import { getSupabaseClient } from "./supabase.js";
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
-
 export interface OutputFile {
   filename: string;
   path: string;
@@ -125,7 +123,7 @@ export function replaceOutputPaths(args: string[], pathMap: Map<string, string>)
 
 /**
  * Uploads a file to Supabase Storage
- * Validates file size (max 100MB)
+ * Validates file size against MAX_OUTPUT_FILE_SIZE_BYTES env var (default: 100MB)
  * Returns storage metadata
  */
 export async function uploadToSupabase(
@@ -142,9 +140,9 @@ export async function uploadToSupabase(
   // Check file exists and get size
   const fileStats = await stat(localPath);
 
-  if (fileStats.size > MAX_FILE_SIZE) {
+  if (fileStats.size > MAX_OUTPUT_FILE_SIZE_BYTES) {
     throw new Error(
-      `File ${originalFilename} exceeds maximum size of 100MB (${fileStats.size} bytes)`
+      `File ${originalFilename} exceeds maximum size of ${MAX_OUTPUT_FILE_SIZE_BYTES} bytes (${fileStats.size} bytes)`
     );
   }
 
@@ -209,4 +207,23 @@ export async function cleanupTempFiles(filePaths: string[]): Promise<void> {
   });
 
   await Promise.all(deletePromises);
+}
+
+const DEFAULT_MAX_OUTPUT_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
+const MAX_OUTPUT_FILE_SIZE_BYTES = parseMaxOutputFileSizeBytes();
+
+function parseMaxOutputFileSizeBytes(): number {
+  const rawValue = process.env.MAX_OUTPUT_FILE_SIZE_BYTES;
+
+  if (!rawValue) {
+    return DEFAULT_MAX_OUTPUT_FILE_SIZE_BYTES;
+  }
+
+  const parsedValue = Number.parseInt(rawValue, 10);
+
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return DEFAULT_MAX_OUTPUT_FILE_SIZE_BYTES;
+  }
+
+  return parsedValue;
 }
