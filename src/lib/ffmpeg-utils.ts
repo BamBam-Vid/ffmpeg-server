@@ -14,6 +14,11 @@ export interface OutputFile {
   contentType: string;
 }
 
+interface UploadDestination {
+  bucketName?: string;
+  pathPrefix?: string;
+}
+
 /**
  * Parses FFmpeg arguments to extract output file paths
  *
@@ -125,9 +130,10 @@ export function replaceOutputPaths(args: string[], pathMap: Map<string, string>)
  */
 export async function uploadToSupabase(
   localPath: string,
-  originalFilename: string
+  originalFilename: string,
+  destination: UploadDestination = {}
 ): Promise<OutputFile> {
-  const bucketName = process.env.SUPABASE_BUCKET;
+  const bucketName = destination.bucketName || process.env.SUPABASE_BUCKET;
 
   if (!bucketName) {
     throw new Error("SUPABASE_BUCKET environment variable is not set");
@@ -145,9 +151,13 @@ export async function uploadToSupabase(
   // Read file buffer
   const fileBuffer = await readFile(localPath);
 
-  // Generate unique storage path: timestamp-filename
+  // Generate unique storage path: optional-prefix/timestamp-filename
+  const normalizedPrefix = destination.pathPrefix
+    ? destination.pathPrefix.replace(/^\/+|\/+$/g, "")
+    : "";
   const timestamp = Date.now();
-  const storagePath = `${timestamp}-${basename(originalFilename)}`;
+  const filename = `${timestamp}-${basename(originalFilename)}`;
+  const storagePath = normalizedPrefix ? `${normalizedPrefix}/${filename}` : filename;
 
   // Detect MIME type
   const contentType = lookup(originalFilename) || "application/octet-stream";

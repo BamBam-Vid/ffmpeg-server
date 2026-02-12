@@ -45,7 +45,11 @@ export const ffmpegQueue: PQueue = new PQueue({ concurrency: maxConcurrent });
 export const runFFmpeg = async (
   argsString: string,
   timeoutMs: number = 5 * 60 * 1000, // Default: 5 minutes
-  outputTempDir?: string
+  outputTempDir?: string,
+  uploadDestination?: {
+    bucketName?: string;
+    pathPrefix?: string;
+  }
 ): Promise<ExecuteFfmpegResponse> => {
   const args = parseArgs(argsString);
 
@@ -131,7 +135,11 @@ export const runFFmpeg = async (
 
     for (const [originalPath, tempPath] of pathMap.entries()) {
       try {
-        const uploadedFile = await uploadToSupabase(tempPath, originalPath);
+        const uploadedFile = await uploadToSupabase(
+          tempPath,
+          originalPath,
+          uploadDestination
+        );
         uploadedOutputs.push(uploadedFile);
       } catch (uploadErr) {
         // Clean up temp files before throwing

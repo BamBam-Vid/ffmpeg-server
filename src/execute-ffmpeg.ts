@@ -34,7 +34,7 @@ export const executeFfmpeg = async (
     });
   }
 
-  const { command } = parseResult.data;
+  const { command, supabaseBucket, supabasePath } = parseResult.data;
   const requestId = res.locals.requestId;
 
   // Extract arguments by removing 'ffmpeg ' prefix
@@ -63,7 +63,10 @@ export const executeFfmpeg = async (
 
     // Add FFmpeg execution to queue with workspace outputs directory
     const result = await ffmpegQueue.add(() =>
-      runFFmpeg(modifiedArgs, 5 * 60 * 1000, workspace.outputsDir)
+      runFFmpeg(modifiedArgs, 5 * 60 * 1000, workspace.outputsDir, {
+        bucketName: supabaseBucket,
+        pathPrefix: supabasePath,
+      })
     );
 
     res.json(result);
@@ -94,6 +97,8 @@ const executeFfmpegSchema = z.object({
         message: "Command must start with 'ffmpeg '",
       }
     ),
+  supabaseBucket: z.string().min(1).optional(),
+  supabasePath: z.string().min(1).optional(),
 });
 
 /**

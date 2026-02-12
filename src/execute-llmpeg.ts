@@ -35,7 +35,7 @@ export const executeLlmpeg = async (
     });
   }
 
-  const { task, inputs } = parseResult.data;
+  const { task, inputs, supabaseBucket, supabasePath } = parseResult.data;
   const requestId = res.locals.requestId;
 
   // Create request-scoped workspace
@@ -61,7 +61,10 @@ export const executeLlmpeg = async (
 
     // Add FFmpeg execution to queue with workspace outputs directory
     const result = await ffmpegQueue.add(() =>
-      runFFmpeg(ffmpegCommand, 5 * 60 * 1000, workspace.outputsDir)
+      runFFmpeg(ffmpegCommand, 5 * 60 * 1000, workspace.outputsDir, {
+        bucketName: supabaseBucket,
+        pathPrefix: supabasePath,
+      })
     );
 
     res.json(result);
@@ -89,4 +92,6 @@ const executeLlmpegSchema = z.object({
       })
     )
     .min(1, "At least one input file is required"),
+  supabaseBucket: z.string().min(1).optional(),
+  supabasePath: z.string().min(1).optional(),
 });
