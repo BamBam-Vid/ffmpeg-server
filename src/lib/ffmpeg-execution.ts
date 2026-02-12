@@ -153,10 +153,10 @@ export const runFFmpeg = async (
 
     return {
       success: true,
+      outputs: uploadedOutputs,
       stdout,
       stderr,
       exitCode,
-      outputs: uploadedOutputs,
     };
   } catch (err) {
     // Clean up temp files on any error
@@ -290,10 +290,10 @@ const parseArgs = (argsString: string): string[] => {
 
 export interface ExecuteFfmpegResponse {
   success: true;
+  outputs: OutputFile[];
   stdout: string;
   stderr: string;
   exitCode: number;
-  outputs: OutputFile[];
 }
 
 export interface ErrorResponse {
