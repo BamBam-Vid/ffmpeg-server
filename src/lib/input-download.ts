@@ -92,9 +92,8 @@ function extractFilename(url: string): string {
 
     // Truncate to stay within 255-byte filesystem limit (with room for index prefix)
     const maxSlugLength = 240 - ext.length;
-    const truncatedSlug = slug.length > maxSlugLength
-      ? slug.slice(-maxSlugLength)
-      : slug;
+    const truncatedSlug =
+      slug.length > maxSlugLength ? slug.slice(-maxSlugLength) : slug;
 
     return `${truncatedSlug}${ext}`;
   } catch {
