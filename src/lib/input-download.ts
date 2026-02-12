@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { extname, join } from "node:path";
 import pLimit from "p-limit";
 
 export interface DownloadedInput {
@@ -25,8 +25,9 @@ export async function downloadInputs(
   targetDir: string
 ): Promise<DownloadedInput[]> {
   // Download all URLs using the global download queue
-  const downloadPromises = urls.map(url =>
-    globalDownloadLimit(() => downloadFile(url, targetDir))
+  // Pass index to avoid filename collisions (e.g., multiple URLs with same basename)
+  const downloadPromises = urls.map((url, index) =>
+    globalDownloadLimit(() => downloadFile(url, targetDir, index))
   );
 
   return await Promise.all(downloadPromises);
@@ -37,7 +38,8 @@ export async function downloadInputs(
  */
 async function downloadFile(
   url: string,
-  targetDir: string
+  targetDir: string,
+  index: number
 ): Promise<DownloadedInput> {
   try {
     const response = await fetch(url);
@@ -48,8 +50,8 @@ async function downloadFile(
       );
     }
 
-    // Extract filename from URL or use a default
-    const filename = extractFilename(url);
+    // Extract filename from URL, prefixed with index to avoid collisions
+    const filename = `${index}-${extractFilename(url)}`;
     const localPath = join(targetDir, filename);
 
     // Download file content
@@ -72,24 +74,30 @@ async function downloadFile(
 }
 
 /**
- * Extracts filename from URL
- * Falls back to timestamp-based filename if extraction fails
+ * Builds a debuggable filename from the full URL path
+ * e.g. "https://storage.rendi.dev/files/abc-123/trimmed.mp4" → "files_abc-123_trimmed.mp4"
  */
 function extractFilename(url: string): string {
   try {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname;
-    const filename = basename(pathname);
+    const ext = extname(pathname) || ".bin";
 
-    // If we got a valid filename with extension, use it
-    if (filename && filename.includes(".")) {
-      return filename;
-    }
+    // Slugify host + path: strip extension, replace non-alphanumeric with underscores, trim
+    const withoutExt = `${urlObj.host}${pathname}`.slice(0, -ext.length);
+    const slug = withoutExt
+      .replace(/[^a-zA-Z0-9-]/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .replace(/_+/g, "_");
 
-    // Fallback: use timestamp + extension from content-type header
-    return `input-${Date.now()}.bin`;
+    // Truncate to stay within 255-byte filesystem limit (with room for index prefix)
+    const maxSlugLength = 240 - ext.length;
+    const truncatedSlug = slug.length > maxSlugLength
+      ? slug.slice(-maxSlugLength)
+      : slug;
+
+    return `${truncatedSlug}${ext}`;
   } catch {
-    // Invalid URL or extraction failed
     return `input-${Date.now()}.bin`;
   }
 }
