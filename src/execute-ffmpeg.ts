@@ -106,7 +106,7 @@ const executeFfmpegSchema = z.object({
  */
 function extractUrls(argsString: string): string[] {
   const urls: string[] = [];
-  const urlPattern = /https?:\/\/[^\s]+/g;
+  const urlPattern = /https?:\/\/[^\s'"]+/g;
   const matches = argsString.match(urlPattern);
 
   if (matches) {
