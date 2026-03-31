@@ -106,6 +106,12 @@ ESLint enforces:
     - Command MUST start with `ffmpeg ` (validation enforced by Zod)
     - Input files can be HTTP/HTTPS URLs (automatically downloaded)
     - Returns: `{ success: true, stdout, stderr, exitCode, outputs: [{ filename, path, url, size, contentType }] }`
+  - `POST /execute-ffprobe` - Inspect media files with FFprobe
+    - Request body: `{ "command": "ffprobe -v quiet -print_format json -show_streams input.mp4" }`
+    - Command MUST start with `ffprobe ` (validation enforced by Zod)
+    - Input files can be HTTP/HTTPS URLs (automatically downloaded)
+    - Returns: `{ success: true, stdout, stderr, exitCode }` (no outputs — read-only)
+    - 1-minute timeout per command
   - `POST /execute-llmpeg` - Natural language FFmpeg command generation and execution
     - Request body: `{ "task": "concatenate videos", "inputs": [{ "name": "video1", "url": "https://..." }, ...] }`
     - Uses Claude Sonnet 4 to convert natural language to FFmpeg commands
@@ -147,6 +153,14 @@ ESLint enforces:
   - Returns public URLs in response with metadata (size, contentType)
   - Atomic operation: all uploads succeed or entire operation fails
   - Always cleans up temporary files after upload (success or failure)
+
+### Shared Handler Utilities (`src/lib/handler-utils.ts`)
+
+- `sendCatchError(res, err)` — categorizes a caught error and sends the appropriate HTTP response
+- `extractUrls(argsString)` — extracts HTTP/HTTPS URLs from a command arguments string
+- `replaceUrlsWithPaths(argsString, downloadedInputs)` — replaces URLs in args with local file paths
+
+Used by all three command handlers (`execute-ffmpeg`, `execute-ffprobe`, `execute-llmpeg`).
 
 ### Natural Language Processing (LLMpeg)
 

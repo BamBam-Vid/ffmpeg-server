@@ -112,6 +112,24 @@ curl -X POST http://localhost:5675/execute-ffmpeg \
 
 Returns server status and FFmpeg version.
 
+### `POST /execute-ffprobe`
+
+Inspect a media file with FFprobe:
+
+```bash
+curl -X POST http://localhost:5675/execute-ffprobe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "command": "ffprobe -v quiet -print_format json -show_format -show_streams https://example.com/input.mp4"
+  }'
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `command` | Yes | FFprobe command (must start with `ffprobe `) |
+
+Returns `{ success, stdout, stderr, exitCode }`. No output files — results are in `stdout`.
+
 ### `POST /execute-llmpeg`
 
 Convert natural language to FFmpeg commands using Claude AI. Requires `ANTHROPIC_API_KEY`.

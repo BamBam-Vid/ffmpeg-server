@@ -70,6 +70,37 @@ Response:
 }
 ```
 
+#### `POST /execute-ffprobe`
+
+Inspect a media file with FFprobe:
+
+```bash
+curl -X POST http://localhost:5675/execute-ffprobe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "command": "ffprobe -v quiet -print_format json -show_format -show_streams https://example.com/input.mp4"
+  }'
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `command` | Yes | FFprobe command (must start with `ffprobe `) |
+
+- Input files can be HTTP/HTTPS URLs (automatically downloaded)
+- No output files — results are in `stdout`/`stderr`
+- 1-minute timeout per command
+
+Response:
+
+```json
+{
+  "success": true,
+  "stdout": "{ \"streams\": [...], \"format\": {...} }",
+  "stderr": "",
+  "exitCode": 0
+}
+```
+
 #### `POST /execute-llmpeg`
 
 Convert natural language to FFmpeg commands using Claude AI:
