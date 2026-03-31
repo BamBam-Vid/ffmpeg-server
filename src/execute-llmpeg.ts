@@ -4,7 +4,6 @@ import {
   ffmpegQueue,
   maxConcurrent,
   runFFmpeg,
-  categorizeError,
   type ExecuteFfmpegResponse,
   type ErrorResponse,
 } from "./lib/ffmpeg-execution.js";
@@ -14,6 +13,7 @@ import {
 } from "./lib/request-workspace.js";
 import { downloadInputs } from "./lib/input-download.js";
 import { convertTaskToFFmpegCommand } from "./lib/llmpeg-converter.js";
+import { sendCatchError } from "./lib/handler-utils.js";
 
 export const executeLlmpeg = async (
   req: Request,
@@ -69,13 +69,7 @@ export const executeLlmpeg = async (
 
     res.json(result);
   } catch (err) {
-    const errorInfo = categorizeError(err);
-    res.status(errorInfo.statusCode).json({
-      success: false,
-      error: errorInfo.message,
-      errorType: errorInfo.type,
-      ...(errorInfo.exitCode !== undefined && { exitCode: errorInfo.exitCode }),
-    });
+    sendCatchError(res, err);
   } finally {
     // Always cleanup workspace (success or error)
     await cleanupRequestWorkspace(requestId);

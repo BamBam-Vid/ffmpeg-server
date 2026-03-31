@@ -3,8 +3,8 @@ import { z } from "zod";
 import {
   ffmpegQueue,
   maxConcurrent,
-  runFFmpeg,
-  type ExecuteFfmpegResponse,
+  runFFprobe,
+  type ExecuteFfprobeResponse,
   type ErrorResponse,
 } from "./lib/ffmpeg-execution.js";
 import {
@@ -18,11 +18,11 @@ import {
   replaceUrlsWithPaths,
 } from "./lib/handler-utils.js";
 
-export const executeFfmpeg = async (
+export const executeFfprobe = async (
   req: Request,
-  res: Response<ExecuteFfmpegResponse | ErrorResponse>
+  res: Response<ExecuteFfprobeResponse | ErrorResponse>
 ) => {
-  const parseResult = executeFfmpegSchema.safeParse(req.body);
+  const parseResult = executeFfprobeSchema.safeParse(req.body);
 
   if (!parseResult.success) {
     const details = parseResult.error.issues.map(issue => ({
@@ -38,13 +38,13 @@ export const executeFfmpeg = async (
     });
   }
 
-  const { command, supabaseBucket, supabasePath } = parseResult.data;
+  const { command } = parseResult.data;
   const requestId = res.locals.requestId;
 
-  // Extract arguments by removing 'ffmpeg ' prefix
-  const args = command.trim().substring(7); // Remove 'ffmpeg ' (7 characters)
+  // Extract arguments by removing 'ffprobe ' prefix
+  const args = command.trim().substring(8); // Remove 'ffprobe ' (8 characters)
 
-  // Create request-scoped workspace
+  // Create request-scoped workspace for downloaded inputs
   const workspace = await createRequestWorkspace(requestId);
 
   try {
@@ -65,37 +65,29 @@ export const executeFfmpeg = async (
       `[Queue] Size: ${ffmpegQueue.size}, Pending: ${ffmpegQueue.pending}, Max: ${maxConcurrent}`
     );
 
-    // Add FFmpeg execution to queue with workspace outputs directory
-    const result = await ffmpegQueue.add(() =>
-      runFFmpeg(modifiedArgs, 5 * 60 * 1000, workspace.outputsDir, {
-        bucketName: supabaseBucket,
-        pathPrefix: supabasePath,
-      })
-    );
+    // Add FFprobe execution to shared queue
+    const result = await ffmpegQueue.add(() => runFFprobe(modifiedArgs));
 
     res.json(result);
   } catch (err) {
     sendCatchError(res, err);
   } finally {
-    // Always cleanup workspace (success or error)
     await cleanupRequestWorkspace(requestId);
   }
 };
 
-const executeFfmpegSchema = z.object({
+const executeFfprobeSchema = z.object({
   command: z
     .string()
     .min(1)
     .refine(
       (cmd) => {
         const trimmed = cmd.trim();
-        return trimmed.startsWith("ffmpeg ");
+        return trimmed.startsWith("ffprobe ");
       },
       {
-        message: "Command must start with 'ffmpeg '",
+        message: "Command must start with 'ffprobe '",
       }
     ),
-  supabaseBucket: z.string().min(1).optional(),
-  supabasePath: z.string().min(1).optional(),
 });
 

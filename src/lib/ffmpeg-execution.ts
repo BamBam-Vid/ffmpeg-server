@@ -288,9 +288,86 @@ const parseArgs = (argsString: string): string[] => {
   return args;
 };
 
+/**
+ * Executes FFprobe command using child_process.spawn
+ * Returns promise that resolves with stdout/stderr/exitCode
+ *
+ * @param argsString - FFprobe arguments string (without 'ffprobe' prefix)
+ * @param timeoutMs - Timeout in milliseconds (default: 1 minute)
+ */
+export const runFFprobe = async (
+  argsString: string,
+  timeoutMs: number = 60 * 1000 // Default: 1 minute
+): Promise<ExecuteFfprobeResponse> => {
+  const args = parseArgs(argsString);
+
+  const { stdout, stderr, exitCode } = await new Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+  }>((resolve, reject) => {
+    const ffprobeProcess = spawn("ffprobe", args);
+
+    let stdout = "";
+    let stderr = "";
+    let isTimedOut = false;
+
+    const timeoutId = setTimeout(() => {
+      isTimedOut = true;
+      ffprobeProcess.kill("SIGKILL");
+      reject(
+        new Error(`FFprobe process timed out after ${timeoutMs / 1000} seconds`)
+      );
+    }, timeoutMs);
+
+    ffprobeProcess.stdout.on("data", (data: Buffer) => {
+      stdout += data.toString();
+    });
+
+    ffprobeProcess.stderr.on("data", (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    ffprobeProcess.on("close", code => {
+      clearTimeout(timeoutId);
+
+      if (isTimedOut) {
+        return;
+      }
+
+      const exitCode = code ?? -1;
+
+      if (exitCode === 0) {
+        resolve({ stdout, stderr, exitCode });
+      } else {
+        reject(
+          new Error(`FFprobe process exited with code ${exitCode}\n${stderr}`)
+        );
+      }
+    });
+
+    ffprobeProcess.on("error", err => {
+      clearTimeout(timeoutId);
+
+      if (!isTimedOut) {
+        reject(new Error(`Failed to spawn FFprobe process: ${err.message}`));
+      }
+    });
+  });
+
+  return { success: true, stdout, stderr, exitCode };
+};
+
 export interface ExecuteFfmpegResponse {
   success: true;
   outputs: OutputFile[];
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+export interface ExecuteFfprobeResponse {
+  success: true;
   stdout: string;
   stderr: string;
   exitCode: number;
