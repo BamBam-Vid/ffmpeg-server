@@ -39,6 +39,7 @@ export function parseOutputFiles(args: string[]): string[] {
     "-disposition", "-stream_loop", "-itsoffset",
     "-crf", "-preset", "-profile", "-level", "-qscale",
     "-g", "-bf", "-maxrate", "-bufsize", "-pix_fmt",
+    "-movflags", "-threads", "-filter_complex_threads",
   ];
 
   for (let i = 0; i < args.length; i++) {
