@@ -152,7 +152,7 @@ docker run -p 5675:5675 \
 | `SUPABASE_URL` | Yes | - | Your Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | - | Service role key for storage operations |
 | `SUPABASE_BUCKET` | No | `ffmpeg-outputs` | Storage bucket name |
-| `MAX_OUTPUT_FILE_SIZE_BYTES` | No | `104857600` | Max output file size in bytes (100MB) |
+| `MAX_OUTPUT_FILE_SIZE_BYTES` | No | `1073741824` | Max output file size in bytes (1 GiB) |
 | `ANTHROPIC_API_KEY` | No* | - | Anthropic API key for `/execute-llmpeg` |
 
 \* Required only if using the `/execute-llmpeg` endpoint.

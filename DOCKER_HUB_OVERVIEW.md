@@ -34,7 +34,7 @@ curl http://localhost:5675/health
 | `PORT` | `5675` | HTTP server port |
 | `NODE_ENV` | `development` | Environment (`development` / `production`) |
 | `SUPABASE_BUCKET` | `ffmpeg-outputs` | Storage bucket name |
-| `MAX_OUTPUT_FILE_SIZE_BYTES` | `104857600` | Max output file size in bytes (100MB) |
+| `MAX_OUTPUT_FILE_SIZE_BYTES` | `1073741824` | Max output file size in bytes (1 GiB) |
 | `ANTHROPIC_API_KEY` | - | Required only for `/execute-llmpeg` endpoint |
 
 ### Supported Platforms

@@ -91,7 +91,7 @@ ESLint enforces:
   - `SUPABASE_URL` - Supabase project URL
   - `SUPABASE_SERVICE_ROLE_KEY` - Service role key for server-side operations
   - `SUPABASE_BUCKET` - Storage bucket name for FFmpeg outputs (default: `ffmpeg-outputs`)
-  - `MAX_OUTPUT_FILE_SIZE_BYTES` - Max output file size before upload (default: `104857600`)
+  - `MAX_OUTPUT_FILE_SIZE_BYTES` - Max output file size before upload (default: `1073741824`)
 - **Anthropic API**: Required for `/execute-llmpeg` endpoint:
   - `ANTHROPIC_API_KEY` - Anthropic API key for Claude Sonnet 4
 
@@ -148,7 +148,7 @@ ESLint enforces:
 - **Supabase Storage integration**:
   - Automatically uploads all generated output files to Supabase Storage
   - Storage path format: `{timestamp}-{filename}`
-  - File size limit: 100MB per file
+  - File size limit: 1 GiB per file by default
   - Automatic MIME type detection using `mime-types` package
   - Returns public URLs in response with metadata (size, contentType)
   - Atomic operation: all uploads succeed or entire operation fails

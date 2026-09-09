@@ -124,7 +124,7 @@ export function replaceOutputPaths(args: string[], pathMap: Map<string, string>)
 
 /**
  * Uploads a file to Supabase Storage
- * Validates file size against MAX_OUTPUT_FILE_SIZE_BYTES env var (default: 100MB)
+ * Validates file size against MAX_OUTPUT_FILE_SIZE_BYTES env var (default: 1 GiB)
  * Returns storage metadata
  */
 export async function uploadToSupabase(
@@ -210,7 +210,7 @@ export async function cleanupTempFiles(filePaths: string[]): Promise<void> {
   await Promise.all(deletePromises);
 }
 
-const DEFAULT_MAX_OUTPUT_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
+const DEFAULT_MAX_OUTPUT_FILE_SIZE_BYTES = 1024 * 1024 * 1024; // 1 GiB
 const MAX_OUTPUT_FILE_SIZE_BYTES = parseMaxOutputFileSizeBytes();
 
 function parseMaxOutputFileSizeBytes(): number {
