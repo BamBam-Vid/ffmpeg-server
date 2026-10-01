@@ -35,7 +35,6 @@ curl http://localhost:5675/health
 | `NODE_ENV` | `development` | Environment (`development` / `production`) |
 | `SUPABASE_BUCKET` | `ffmpeg-outputs` | Storage bucket name |
 | `MAX_OUTPUT_FILE_SIZE_BYTES` | `1073741824` | Max output file size in bytes (1 GiB) |
-| `ANTHROPIC_API_KEY` | - | Required only for `/execute-llmpeg` endpoint |
 
 ### Supported Platforms
 
@@ -129,31 +128,6 @@ curl -X POST http://localhost:5675/execute-ffprobe \
 | `command` | Yes | FFprobe command (must start with `ffprobe `) |
 
 Returns `{ success, stdout, stderr, exitCode }`. No output files — results are in `stdout`.
-
-### `POST /execute-llmpeg`
-
-Convert natural language to FFmpeg commands using Claude AI. Requires `ANTHROPIC_API_KEY`.
-
-```bash
-curl -X POST http://localhost:5675/execute-llmpeg \
-  -H "Content-Type: application/json" \
-  -d '{
-    "task": "concatenate these videos one after another",
-    "inputs": [
-      {"url": "https://example.com/video1.mp4"},
-      {"url": "https://example.com/video2.mp4"}
-    ]
-  }'
-```
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `task` | Yes | Natural language description of the FFmpeg task |
-| `inputs` | Yes | Array of `{ url: string }` input files (min 1) |
-| `supabaseBucket` | No | Override default storage bucket |
-| `supabasePath` | No | Path prefix for uploaded files |
-
-Response format is identical to `/execute-ffmpeg`.
 
 ## Links
 

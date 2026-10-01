@@ -31,7 +31,7 @@ export const maxConcurrent = isProduction
 console.log("[maxConcurrent]: ", maxConcurrent);
 
 // Create single shared queue for managing concurrent FFmpeg processes
-// Used by both /execute-ffmpeg and /execute-llmpeg endpoints
+// Used by both /execute-ffmpeg and /execute-ffprobe endpoints
 export const ffmpegQueue: PQueue = new PQueue({ concurrency: maxConcurrent });
 
 /**

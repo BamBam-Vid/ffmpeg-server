@@ -101,35 +101,6 @@ Response:
 }
 ```
 
-#### `POST /execute-llmpeg`
-
-Convert natural language to FFmpeg commands using Claude AI:
-
-```bash
-curl -X POST http://localhost:5675/execute-llmpeg \
-  -H "Content-Type: application/json" \
-  -d '{
-    "task": "concatenate these videos one after another",
-    "inputs": [
-      {"url": "https://example.com/video1.mp4"},
-      {"url": "https://example.com/video2.mp4"}
-    ]
-  }'
-```
-
-Request body:
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `task` | Yes | Natural language description of the FFmpeg task |
-| `inputs` | Yes | Array of `{ url: string }` input files (min 1) |
-| `supabaseBucket` | No | Override default storage bucket |
-| `supabasePath` | No | Path prefix for uploaded files |
-
-Response format is identical to `/execute-ffmpeg`.
-
-Requires `ANTHROPIC_API_KEY` environment variable.
-
 ## How to Deploy
 
 ### Docker
@@ -139,7 +110,6 @@ docker run -p 5675:5675 \
   -e SUPABASE_URL=your_url \
   -e SUPABASE_SERVICE_ROLE_KEY=your_key \
   -e SUPABASE_BUCKET=ffmpeg-outputs \
-  -e ANTHROPIC_API_KEY=your_key \
   udaian/ffmpeg-server:latest
 ```
 
@@ -153,9 +123,6 @@ docker run -p 5675:5675 \
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | - | Service role key for storage operations |
 | `SUPABASE_BUCKET` | No | `ffmpeg-outputs` | Storage bucket name |
 | `MAX_OUTPUT_FILE_SIZE_BYTES` | No | `1073741824` | Max output file size in bytes (1 GiB) |
-| `ANTHROPIC_API_KEY` | No* | - | Anthropic API key for `/execute-llmpeg` |
-
-\* Required only if using the `/execute-llmpeg` endpoint.
 
 ### Supabase Setup
 

@@ -92,8 +92,6 @@ ESLint enforces:
   - `SUPABASE_SERVICE_ROLE_KEY` - Service role key for server-side operations
   - `SUPABASE_BUCKET` - Storage bucket name for FFmpeg outputs (default: `ffmpeg-outputs`)
   - `MAX_OUTPUT_FILE_SIZE_BYTES` - Max output file size before upload (default: `1073741824`)
-- **Anthropic API**: Required for `/execute-llmpeg` endpoint:
-  - `ANTHROPIC_API_KEY` - Anthropic API key for Claude Sonnet 4
 
 ### Express Server Structure
 
@@ -112,11 +110,6 @@ ESLint enforces:
     - Input files can be HTTP/HTTPS URLs (automatically downloaded)
     - Returns: `{ success: true, stdout, stderr, exitCode }` (no outputs — read-only)
     - 1-minute timeout per command
-  - `POST /execute-llmpeg` - Natural language FFmpeg command generation and execution
-    - Request body: `{ "task": "concatenate videos", "inputs": [{ "name": "video1", "url": "https://..." }, ...] }`
-    - Uses Claude Sonnet 4 to convert natural language to FFmpeg commands
-    - Automatically downloads input files and executes generated command
-    - Returns: Same format as `/execute-ffmpeg`
 
 ### FFmpeg Processing Architecture
 
@@ -160,24 +153,7 @@ ESLint enforces:
 - `extractUrls(argsString)` — extracts HTTP/HTTPS URLs from a command arguments string
 - `replaceUrlsWithPaths(argsString, downloadedInputs)` — replaces URLs in args with local file paths
 
-Used by all three command handlers (`execute-ffmpeg`, `execute-ffprobe`, `execute-llmpeg`).
-
-### Natural Language Processing (LLMpeg)
-
-- **Claude API integration**:
-  - Uses Claude Sonnet 4 (`claude-sonnet-4-20250514`) for command generation
-  - Converts natural language tasks to FFmpeg commands
-  - Prompt engineering: Instructs Claude to generate only FFmpeg arguments (no `ffmpeg` prefix)
-  - Response format: JSON with `command` and `reasoning` fields
-  - Handles markdown-wrapped JSON (```json...```) and plain JSON responses
-  - Error handling for Anthropic API failures
-- **Workflow**:
-  1. Download input files from URLs
-  2. Build context-aware prompt with task + input file paths
-  3. Call Claude API to generate FFmpeg command
-  4. Execute generated command using shared FFmpeg queue
-  5. Upload outputs to Supabase Storage
-  6. Return results to user
+Used by both command handlers (`execute-ffmpeg`, `execute-ffprobe`).
 
 ## Development Workflow
 
