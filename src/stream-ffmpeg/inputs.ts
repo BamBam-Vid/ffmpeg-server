@@ -49,12 +49,17 @@ export const sizeInputs = (urls: string[], signal: AbortSignal) =>
  * Downloads each input straight to disk, a few at a time. Network errors and 5xx get up to 3 tries,
  * and a download that receives nothing for 60 s counts as a failed try.
  */
-export const downloadInputs = ({ urls, inDir, jobId, signal, onBytes }: DownloadInputsParams) => {
+export const downloadInputs = async ({ urls, inDir, jobId, signal, onBytes }: DownloadInputsParams) => {
   const limit = pLimit(DOWNLOADS_AT_ONCE);
+  // The first download that fails for good stops the others, so nothing keeps writing after the job cleans up.
+  const stopAll = new AbortController();
+  const downloadSignal = AbortSignal.any([signal, stopAll.signal]);
 
-  return Promise.all(
+  const results = await Promise.allSettled(
     urls.map((url, index) =>
       limit(async () => {
+        // A download still waiting in the queue when another one failed doesn't start.
+        if (downloadSignal.aborted) throw downloadSignal.reason;
         const name = basename(new URL(url).pathname).replace(/[^\w.-]/g, "_").slice(-100) || "input";
         const path = join(inDir, `${index}-${name}`);
 
@@ -64,7 +69,7 @@ export const downloadInputs = ({ urls, inDir, jobId, signal, onBytes }: Download
           let received = 0;
 
           try {
-            const response = await fetch(url, { signal: AbortSignal.any([signal, stall.signal]) });
+            const response = await fetch(url, { signal: AbortSignal.any([downloadSignal, stall.signal]) });
             if (!response.ok || !response.body) {
               await response.body?.cancel();
               throw jobError("download_failed", `Input ${withoutQuery(url)} returned HTTP ${response.status}`, {
@@ -88,7 +93,7 @@ export const downloadInputs = ({ urls, inDir, jobId, signal, onBytes }: Download
             return { url, path, size: (await stat(path)).size };
           } catch (err) {
             onBytes(-received);
-            if (signal.aborted) throw signal.reason;
+            if (downloadSignal.aborted) throw downloadSignal.reason;
 
             const error = isJobError(err)
               ? err
@@ -107,14 +112,22 @@ export const downloadInputs = ({ urls, inDir, jobId, signal, onBytes }: Download
               attempt,
               error: error.message,
             });
-            await sleep(attempt * 2000, undefined, { signal });
+            await sleep(attempt * 2000, undefined, { signal: downloadSignal });
           } finally {
             clearTimeout(stallTimer);
           }
         }
+      }).catch((err: unknown) => {
+        stopAll.abort(err);
+        throw err;
       })
     )
   );
+
+  // Every download has stopped by now. Report why the job stopped, or else the first failure.
+  if (signal.aborted) throw signal.reason;
+  if (stopAll.signal.aborted) throw stopAll.signal.reason;
+  return results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
 };
 
 /**

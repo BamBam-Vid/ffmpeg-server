@@ -249,7 +249,10 @@ export const streamFfmpeg = async (req: Request, res: Response) => {
   } finally {
     clearInterval(progressTimer);
     storageClient?.destroy();
-    await rm(jobDir, { recursive: true, force: true });
+    // A failed delete must not stop the slot and disk space from being freed below.
+    await rm(jobDir, { recursive: true, force: true }).catch((err: unknown) =>
+      log("warn", "Could not delete the job folder", { jobId, error: errorMessage(err) })
+    );
     releaseDisk(reservedBytes);
     releaseJobSlot();
     runningJobs.delete(jobId);
