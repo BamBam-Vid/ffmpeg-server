@@ -1,6 +1,6 @@
 # Repository Instructions
 
-HTTP server that runs FFmpeg and FFprobe commands and uploads FFmpeg outputs to Supabase Storage.
+HTTP server that runs FFmpeg commands. `POST /stream-ffmpeg` (code in `src/stream-ffmpeg/`) uploads outputs to the caller's S3-compatible storage; the older `/execute-ffmpeg` and `/execute-ffprobe` still use Supabase. The caller contract is `docs/stream-ffmpeg-api.md` and the design is `docs/stream-ffmpeg-plan.md`.
 
 ## Engineering Philosophy
 
@@ -66,7 +66,7 @@ HTTP server that runs FFmpeg and FFprobe commands and uploads FFmpeg outputs to 
 - Keep docs minimal and complete: explain only what someone needs to get started and succeed, skip implementation details unless usage needs them, and prefer short copy-paste-ready commands with clear required inputs.
 - `README.md` must cover how to use the server (quick start, endpoint usage), how to deploy it (Docker steps, required config), and how to contribute (setup, lint/build checks, PR expectations).
 - `DOCKER_HUB_OVERVIEW.md` must cover how to deploy (`docker run` examples, env vars labeled Required or Optional with defaults) and how the FFmpeg endpoint works (request shape, command rules, response shape including outputs).
-- Update both files whenever endpoints or env vars change.
+- Update both files, and `docs/stream-ffmpeg-api.md` for `/stream-ffmpeg`, whenever endpoints or env vars change.
 
 ## Git / Review
 

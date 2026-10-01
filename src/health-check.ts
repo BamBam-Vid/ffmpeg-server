@@ -1,12 +1,14 @@
 import type { Request, Response } from "express";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { getCapacity } from "./stream-ffmpeg/capacity.js";
 
 const execAsync = promisify(exec);
 
 interface HealthCheckResponse {
   status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
+  streamFfmpeg: ReturnType<typeof getCapacity>;
   checks: {
     server: {
       status: "ok";
@@ -59,6 +61,7 @@ export const healthCheck = async (
     res.json({
       status: "healthy",
       timestamp,
+      streamFfmpeg: getCapacity(),
       checks: {
         server: {
           status: "ok",
@@ -76,6 +79,7 @@ export const healthCheck = async (
     res.status(503).json({
       status: "unhealthy",
       timestamp,
+      streamFfmpeg: getCapacity(),
       checks: {
         server: {
           status: "ok",

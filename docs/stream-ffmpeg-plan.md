@@ -1,6 +1,6 @@
 # stream-ffmpeg plan
 
-Part 1 is decided. Part 2 is next.
+All parts are decided. The server side is built in `src/stream-ffmpeg/`; the caller (part 10) still has to be built in the Temporal repo.
 
 ## Goal
 
@@ -220,7 +220,7 @@ Shutdown (when Railway stops the server):
   - backoff: 30 s, doubling each time, up to 5 min
 - After a success, the workflow builds URLs from the returned keys. A retry overwrites the same keys.
 
-## Part 11: Docs (proposed)
+## Part 11: Docs (done)
 
 - `docs/stream-ffmpeg-api.md` is the full guide for callers and their AI agents. It's already written and acts as the contract.
 - `README.md` gets a short `/stream-ffmpeg` section that links to the guide, adds `MAX_CONCURRENT_JOBS` and `MAX_DISK_GB` to the env table, and adds Railway notes (private network, no volume, 10 s draining). The old endpoints are marked as the older way.
@@ -238,7 +238,7 @@ Shutdown (when Railway stops the server):
 - [x] 8. Startup and shutdown
 - [x] 9. Railway: one replica, no volume, private network only
 - [x] 10. Caller
-- [ ] 11. Docs: README, Docker Hub overview, `AGENTS.md`
+- [x] 11. Docs
 
 ## Open questions
 
