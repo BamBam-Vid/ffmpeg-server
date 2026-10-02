@@ -28,6 +28,9 @@ FROM node:24.11.1-alpine AS production
 RUN apk add --no-cache 'ffmpeg=~8.0' || true
 RUN ffmpeg -version
 
+# /stream-ffmpeg runs FFmpeg as this unprivileged user, so commands can't read the server's secrets
+RUN addgroup -S ffmpeg && adduser -S -D -H -G ffmpeg ffmpeg
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.1.0 --activate
 

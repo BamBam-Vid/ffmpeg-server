@@ -1,18 +1,16 @@
 # FFmpeg Server
 
-A production-ready HTTP server for executing FFmpeg commands with automatic file upload to Supabase Storage.
+An HTTP server that runs FFmpeg commands. `POST /stream-ffmpeg` downloads the inputs, runs FFmpeg, and uploads the outputs to your S3-compatible bucket (e.g. Cloudflare R2), streaming progress as it goes.
 
 ## How to Use
 
 ### Quick Start (Docker)
 
 ```bash
-docker run -p 5675:5675 \
-  -e SUPABASE_URL=your_supabase_url \
-  -e SUPABASE_SERVICE_ROLE_KEY=your_service_role_key \
-  -e SUPABASE_BUCKET=ffmpeg-outputs \
-  udaian/ffmpeg-server:latest
+docker run -p 5675:5675 udaian/ffmpeg-server:latest
 ```
+
+`/stream-ffmpeg` needs no other settings. The older `/execute-ffmpeg` also needs the Supabase variables (see [Environment Variables](#environment-variables)).
 
 Verify it's running:
 
@@ -24,9 +22,34 @@ curl http://localhost:5675/health
 
 #### `GET /health`
 
-Returns server status and FFmpeg version.
+Returns server status, FFmpeg version, and `/stream-ffmpeg` capacity (jobs running, disk set aside).
+
+#### `POST /stream-ffmpeg` (recommended)
+
+Runs one FFmpeg command. Inputs are URLs, outputs go to your bucket, and the reply streams one JSON line about every 10 seconds until a final `result` or `error` line.
+
+```bash
+curl -N -X POST http://localhost:5675/stream-ffmpeg \
+  -H "Content-Type: application/json" \
+  -d '{
+    "command": "ffmpeg -i https://example.com/input.mp4 -vf scale=1280:720 output.mp4",
+    "storage": {
+      "endpoint": "https://<account-id>.r2.cloudflarestorage.com",
+      "bucket": "videos",
+      "accessKeyId": "<key id>",
+      "secretAccessKey": "<secret>",
+      "prefix": "renders/"
+    }
+  }'
+```
+
+- When the server is full it answers `503` with `Retry-After: 30`; retry then.
+- The result lists each output's `key`, `size`, and `contentType`; build URLs from `key`.
+- Full contract (fields, every line type, error reasons, retry rules, a Temporal example): [docs/stream-ffmpeg-api.md](docs/stream-ffmpeg-api.md).
 
 #### `POST /execute-ffmpeg`
+
+Older endpoint: the whole job runs inside one silent HTTP call, so jobs over about 5 minutes get cut off by clients and proxies. Prefer `/stream-ffmpeg`.
 
 Execute an FFmpeg command directly:
 
@@ -101,47 +124,22 @@ Response:
 }
 ```
 
-#### `POST /execute-llmpeg`
-
-Convert natural language to FFmpeg commands using Claude AI:
-
-```bash
-curl -X POST http://localhost:5675/execute-llmpeg \
-  -H "Content-Type: application/json" \
-  -d '{
-    "task": "concatenate these videos one after another",
-    "inputs": [
-      {"url": "https://example.com/video1.mp4"},
-      {"url": "https://example.com/video2.mp4"}
-    ]
-  }'
-```
-
-Request body:
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `task` | Yes | Natural language description of the FFmpeg task |
-| `inputs` | Yes | Array of `{ url: string }` input files (min 1) |
-| `supabaseBucket` | No | Override default storage bucket |
-| `supabasePath` | No | Path prefix for uploaded files |
-
-Response format is identical to `/execute-ffmpeg`.
-
-Requires `ANTHROPIC_API_KEY` environment variable.
-
 ## How to Deploy
 
 ### Docker
 
 ```bash
 docker run -p 5675:5675 \
-  -e SUPABASE_URL=your_url \
-  -e SUPABASE_SERVICE_ROLE_KEY=your_key \
-  -e SUPABASE_BUCKET=ffmpeg-outputs \
-  -e ANTHROPIC_API_KEY=your_key \
+  -e MAX_CONCURRENT_JOBS=4 \
+  -e MAX_DISK_GB=65 \
   udaian/ffmpeg-server:latest
 ```
+
+### Railway
+
+- Call the server over Railway's private network (`http://<service>.railway.internal:5675`). Public URLs cut requests off at 15 minutes.
+- Don't attach a volume: job files are temporary, and a volume blocks replicas.
+- Set `RAILWAY_DEPLOYMENT_DRAINING_SECONDS=10` so running jobs can send their final `server_restarting` line before a deploy stops the server.
 
 ### Environment Variables
 
@@ -149,15 +147,14 @@ docker run -p 5675:5675 \
 |----------|----------|---------|-------------|
 | `PORT` | No | `5675` | HTTP server port |
 | `NODE_ENV` | No | `development` | Environment (`development` / `production`) |
-| `SUPABASE_URL` | Yes | - | Your Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | - | Service role key for storage operations |
-| `SUPABASE_BUCKET` | No | `ffmpeg-outputs` | Storage bucket name |
-| `MAX_OUTPUT_FILE_SIZE_BYTES` | No | `1073741824` | Max output file size in bytes (1 GiB) |
-| `ANTHROPIC_API_KEY` | No* | - | Anthropic API key for `/execute-llmpeg` |
+| `MAX_CONCURRENT_JOBS` | No | `4` | Most `/stream-ffmpeg` jobs running at once |
+| `MAX_DISK_GB` | No | `65` | Disk budget for `/stream-ffmpeg` jobs; each sets aside 3.5x its input size |
+| `SUPABASE_URL` | For `/execute-ffmpeg` | - | Your Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | For `/execute-ffmpeg` | - | Service role key for storage operations |
+| `SUPABASE_BUCKET` | No | `ffmpeg-outputs` | Storage bucket name for `/execute-ffmpeg` |
+| `MAX_OUTPUT_FILE_SIZE_BYTES` | No | `1073741824` | Max output file size for `/execute-ffmpeg` (1 GiB) |
 
-\* Required only if using the `/execute-llmpeg` endpoint.
-
-### Supabase Setup
+### Supabase Setup (only for `/execute-ffmpeg`)
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Create a storage bucket (e.g. `ffmpeg-outputs`) and set it to **public**
