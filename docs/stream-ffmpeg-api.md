@@ -52,6 +52,7 @@ This guide is the contract for callers. Follow it exactly.
 - These are rejected when they appear outside quotes: `|` `&` `;` `<` `>` `(` `)`, and `#` at the start of an argument. Put filter graphs in quotes, e.g. `-filter_complex "[0:v]scale=1280:720[v];[v][1:v]overlay"`.
 - `$` and `*` reach FFmpeg exactly as written. Nothing expands them.
 - **Inputs:** any argument that is exactly an `http://` or `https://` URL is downloaded first and swapped for a local path. Inputs must be URLs, not file paths on the server.
+- **Input files in filter text:** each downloaded input is saved at `../in/<index>-<name>`, relative to the folder FFmpeg runs in. `<index>` counts the command's distinct input URLs from 0, in the order they first appear. `<name>` is the last part of the URL's path, with every character other than ASCII letters, digits, `_`, `.` and `-` replaced by `_`, cut to its last 100 characters (`input` if that leaves nothing). Filters that open a file, like `ass` or `subtitles`, can use this path: with `-i https://cdn.example.com/overlay.ass` as the first URL, write `-vf "ass=../in/0-overlay.ass"`.
 - **Outputs:** use plain file names with no folders, like `room-15.mp4` or `frame_%03d.png`. Every file FFmpeg writes in its working folder gets uploaded to `prefix + file name`, and an existing file with that key is overwritten.
 - **Not supported:**
   - HLS playlists (`.m3u8`) as inputs
